@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -34,8 +33,10 @@ model User {
 model Artical {
   id          Int     @id @default(autoincrement())
   title       String
-  description String
-  contnent    String
+  description String   @db.Text
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   // Relation to User
   authorId    Int
@@ -45,7 +46,9 @@ model Artical {
 model Project {
   id          Int     @id @default(autoincrement())
   title       String
-  description String
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   // Relation to User
   ownerId     Int
@@ -55,8 +58,10 @@ model Project {
 model Snippet {
   id          Int     @id @default(autoincrement())
   name        String
-  description String
-  code        String
+  description String  @db.Text
+  code        String  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Reation to Tag
   tags        Tag[]   @relation("SnippetTags")
