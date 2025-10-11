@@ -3,9 +3,6 @@ import { IsDate, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class createArticalDto {
 
-    @IsNumber()
-    id: number;
-
     @IsString()
     title: string;
 

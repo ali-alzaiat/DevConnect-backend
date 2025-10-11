@@ -33,7 +33,7 @@ model User {
 model Artical {
   id          Int     @id @default(autoincrement())
   title       String
-  description String   @db.Text
+  description String?   @db.Text
   content     String   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -46,7 +46,7 @@ model Artical {
 model Project {
   id          Int     @id @default(autoincrement())
   title       String
-  description String   @db.Text
+  description String?   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -58,7 +58,7 @@ model Project {
 model Snippet {
   id          Int     @id @default(autoincrement())
   name        String
-  description String  @db.Text
+  description String?  @db.Text
   code        String  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
