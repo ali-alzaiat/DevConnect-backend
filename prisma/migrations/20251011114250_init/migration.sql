@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `artical` MODIFY `description` TEXT NOT NULL;
+ALTER TABLE `article` MODIFY `description` TEXT NOT NULL;
 
 -- AlterTable
 ALTER TABLE `project` MODIFY `description` TEXT NOT NULL;

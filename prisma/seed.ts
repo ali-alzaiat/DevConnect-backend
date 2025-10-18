@@ -49,7 +49,7 @@ async function main() {
   const articles = await Promise.all(
     Array.from({ length: 30 }).map(() => {
       const author = faker.helpers.arrayElement(users);
-      return prisma.artical.create({
+      return prisma.article.create({
         data: {
           title: faker.lorem.sentence(),
           description: faker.lorem.paragraph(),
