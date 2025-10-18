@@ -10,6 +10,7 @@ import {
 import { ArticleService } from './article.service';
 import { createArticleDto } from './dto/create-article.dto';
 import ArticleResponseDto from './dto/article-response.dto';
+import { ApiQuery } from '@nestjs/swagger';
 
 @Controller('article')
 export class ArticleController {
@@ -17,6 +18,8 @@ export class ArticleController {
 
   @Get()
   @HttpCode(200)
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   async getAllArticles(
     @Query('page') page: number,
     @Query('limit') limit: number,
