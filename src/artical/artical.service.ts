@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/common/prisma/prisma.service';
 import ArticalResponseDto from './dto/artical-response.dto';
 import { formatArticalResponse } from './artical.util';
 import { createArticalDto } from './dto/create-artical.dto';
