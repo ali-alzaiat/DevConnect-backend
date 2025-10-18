@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import ArticalResponseDto from './dto/artical-response.dto';
 import { formatArticalResponse } from './artical.util';
 import { createArticalDto } from './dto/create-artical.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ArticalService {
@@ -12,14 +13,19 @@ export class ArticalService {
     page: number,
     limit: number,
   ): Promise<ArticalResponseDto[]> {
-    const articals = await this.prisma.artical.findMany({
-      orderBy: { createdAt: 'desc' },
+    const options = {
+      orderBy: { createdAt: Prisma.SortOrder.desc },
       include: {
         author: true,
       },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    };
+    if (page && limit) {
+      Object.assign(options, {
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    }
+    const articals = await this.prisma.artical.findMany(options);
 
     // Map DB entities to DTOs (optional, for shaping the data)
     return articals.map((a) => ({
@@ -53,9 +59,12 @@ export class ArticalService {
         authorId: artical.authorId,
       },
       include: {
-        author: true
-      }
+        author: true,
+      },
     });
-    return {...formatArticalResponse(newArtical), authorName: newArtical.author.name};
+    return {
+      ...formatArticalResponse(newArtical),
+      authorName: newArtical.author.name,
+    };
   }
 }
