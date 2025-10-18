@@ -31,16 +31,18 @@ export class ArticleService {
         author: true,
       },
     };
+
     if (page && limit) {
       Object.assign(options, {
         skip: (page - 1) * limit,
         take: limit,
       });
     }
+
     const articles = await this.prisma.article.findMany(options);
+
     this.logger.log(`Fetched ${articles.length} articles`);
 
-    // Map DB entities to DTOs (optional, for shaping the data)
     return articles.map((a) => ({
       ...formatArticleResponse(a),
       authorName: a.author.name,
@@ -54,9 +56,14 @@ export class ArticleService {
         author: true,
       },
     });
+
     if (!article) {
+      this.logger.warn(`Article with ID ${id} not found`);
       throw new NotFoundException(`Article with ID ${id} not found`);
     }
+
+    this.logger.log(`Fetched article with ID ${id}`);
+
     return {
       ...formatArticleResponse(article),
       authorName: article.author.name,
@@ -64,6 +71,8 @@ export class ArticleService {
   }
 
   async createArticle(article: createArticleDto): Promise<ArticleResponseDto> {
+    this.logger.log(`Creating article titled "${article.title}"`);
+
     const newArticle = await this.prisma.article.create({
       data: {
         title: article.title,
@@ -75,6 +84,11 @@ export class ArticleService {
         author: true,
       },
     });
+
+    this.logger.log(
+      `Created article titled "${article.title}" with ID ${newArticle.id}`,
+    );
+
     return {
       ...formatArticleResponse(newArticle),
       authorName: newArticle.author.name,
