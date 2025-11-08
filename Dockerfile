@@ -1,0 +1,19 @@
+# --- Base image ---
+FROM node:20-alpine AS base
+WORKDIR /usr/src/app
+
+# --- Install dependencies ---
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+
+# --- Copy source code ---
+COPY . .
+
+# --- Build the app ---
+RUN npm run build
+
+# --- Expose app port ---
+EXPOSE 3000
+
+# --- Run app ---
+CMD ["npm", "run", "start:prod"]
