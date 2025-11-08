@@ -1,7 +1,11 @@
 import { Article } from '@prisma/client';
 import Redis from 'ioredis';
 
-const redis = new Redis({ db: 0, host: 'localhost', port: 6379 });
+const redis = new Redis({
+  db: 0,
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+});
 
 export function formatArticleResponse(article: Article) {
   return {
