@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE `article` MODIFY `description` TEXT NULL;
+ALTER TABLE `Article` MODIFY `description` TEXT NULL;
 
 -- AlterTable
-ALTER TABLE `project` MODIFY `description` TEXT NULL;
+ALTER TABLE `Project` MODIFY `description` TEXT NULL;
 
 -- AlterTable
-ALTER TABLE `snippet` MODIFY `description` TEXT NULL;
+ALTER TABLE `Snippet` MODIFY `description` TEXT NULL;
