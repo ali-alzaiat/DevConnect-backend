@@ -25,6 +25,12 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Run with Docker
+
+```bash
+docker compose up
+```
+
 ## Project setup
 
 ```bash
@@ -73,6 +79,16 @@ $ mau deploy
 ```
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Enviroment variables example
+
+```
+DATABASE_URL="mysql://root:1234@mysql:3306/devconnect"
+REDIS_URL="redis://redis:6379"
+PORT=3000
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
 
 ## Resources
 
