@@ -28,6 +28,11 @@ model User {
   snippets    Snippet[]
   messages  Message[]
   chats     Chat[]     @relation("UserChats")
+
+  // Permissions
+  articlePermissions  ArticlePermission[]
+  projectPermissions  ProjectPermission[]
+  snippetPermissions  SnippetPermission[]
 }
 
 model Article {
@@ -41,6 +46,9 @@ model Article {
   // Relation to User
   authorId    Int
   author      User   @relation(fields: [authorId], references: [id])
+
+  // Permissions
+  permissions ArticlePermission[]
 }
 
 model Project {
@@ -53,6 +61,9 @@ model Project {
   // Relation to User
   ownerId     Int
   owner       User   @relation(fields: [ownerId], references: [id])
+
+  // Permissions
+  permissions ProjectPermission[]
 }
 
 model Snippet {
@@ -69,6 +80,9 @@ model Snippet {
   // Relation to User
   creatorId   Int
   creator     User    @relation(fields: [creatorId], references: [id])
+
+  // Permissions
+  permissions SnippetPermission[]
 }
 
 model Tag {
@@ -99,4 +113,49 @@ model Message {
 
   author    User      @relation(fields: [authorId], references: [id])
   chat      Chat      @relation(fields: [chatId], references: [id])
+}
+
+enum PermissionLevel {
+  VIEW
+  SHARE
+  EDIT
+}
+
+model ArticlePermission {
+  id         Int             @id @default(autoincrement())
+  level      PermissionLevel
+
+  userId     Int
+  articleId  Int
+
+  user       User            @relation(fields: [userId], references: [id])
+  article    Article         @relation(fields: [articleId], references: [id])
+
+  @@unique([userId, articleId])
+}
+
+model ProjectPermission {
+  id         Int             @id @default(autoincrement())
+  level      PermissionLevel
+
+  userId     Int
+  projectId  Int
+
+  user       User            @relation(fields: [userId], references: [id])
+  project    Project         @relation(fields: [projectId], references: [id])
+
+  @@unique([userId, projectId])
+}
+
+model SnippetPermission {
+  id         Int             @id @default(autoincrement())
+  level      PermissionLevel
+
+  userId     Int
+  snippetId  Int
+
+  user       User            @relation(fields: [userId], references: [id])
+  snippet    Snippet         @relation(fields: [snippetId], references: [id])
+
+  @@unique([userId, snippetId])
 }
