@@ -5,6 +5,7 @@ WORKDIR /usr/src/app
 # --- Install dependencies ---
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
+RUN npm i -g @nestjs/cli
 
 # --- Copy source code ---
 COPY . .
