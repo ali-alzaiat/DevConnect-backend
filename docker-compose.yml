@@ -58,6 +58,7 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    working_dir: /usr/src/app
 
 volumes:
   mysql_data:
