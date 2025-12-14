@@ -9,6 +9,7 @@ import { WinstonLoggingInterceptor } from './common/interceptors/logging.interce
 import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
+import { SnippetModule } from './snippet/snippet.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Keyv } from 'keyv';
         };
       },
     }),
+    SnippetModule,
   ],
   controllers: [AppController],
   providers: [
