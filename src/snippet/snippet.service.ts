@@ -1,11 +1,12 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable, LoggerService } from '@nestjs/common';
+import { Inject, Injectable, LoggerService, NotFoundException } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import { Cache } from 'cache-manager';
 import { Prisma } from '@prisma/client';
 import SnippetResponseDTO from './dto/snippet-response.dto';
 import { formatSnippetResponse } from './snippet.util';
+import CreateSnippetDTO from './dto/create-snippet.dto';
 
 @Injectable()
 export class SnippetService {
@@ -19,10 +20,10 @@ export class SnippetService {
     }
 
     private cacheKey(page: number, limit: number) {
-    return `snippets_page_${page}_limit_${limit}`;
-  }
+      return `snippets_page_${page}_limit_${limit}`;
+    }
     
-    async getAllSnippets(page: number, limit: number) {
+    async getAllSnippets(page: number, limit: number): Promise<SnippetResponseDTO[]> {
         const cacheKey = this.cacheKey(page, limit);
             const cachedSnippets: SnippetResponseDTO[] | undefined =
               await this.cacheManager.get(cacheKey);
@@ -60,5 +61,53 @@ export class SnippetService {
             this.logger.log(`Fetched ${res.length} snippets`);
         
             return res;
+    }
+
+    async getSnippetById(id: number): Promise<SnippetResponseDTO> {
+      const snippet = await this.prisma.snippet.findUnique({
+        where: { id },
+        include: {
+          creator: true,
+          tags: true
+        }
+      });
+
+      if(!snippet) {
+        this.logger.warn(`Snippet with ID ${id} not found`);
+        throw new NotFoundException(`Snippet with ID ${id} not found`);
+      }
+
+      this.logger.log(`Fetched snippet with ID ${id}`);
+      const res = {
+        ...formatSnippetResponse(snippet),
+        creatorName: snippet.creator.name,
+        tags: snippet.tags,
+      };
+
+      return res;
+    }
+
+    async createSnippet(snippet: CreateSnippetDTO): Promise<SnippetResponseDTO> {
+      const newSnippet = await this.prisma.snippet.create({
+        data: {
+          name: snippet.name,
+          code: snippet.code,
+          description: snippet.description,
+          creator: { connect: { id: 1 } },
+          tags: {
+            connectOrCreate: snippet.tags.map((name) => ({
+              where: { name },
+              create: { name },
+            })),
+          },
+        },
+        include: {
+          tags: true,
+        },
+      });
+
+      this.logger.log(`Created new snippet with ID ${newSnippet.id}`);
+
+      return newSnippet;
     }
 }
