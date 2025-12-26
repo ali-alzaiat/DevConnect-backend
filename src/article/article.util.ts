@@ -1,4 +1,3 @@
-import { Article } from '@prisma/client';
 import Redis from 'ioredis';
 
 const redis = new Redis({
@@ -7,16 +6,12 @@ const redis = new Redis({
   port: parseInt(process.env.REDIS_PORT || '6379'),
 });
 
-export function formatArticleResponse(article: Article) {
+export function mapArticleToDTO(article: any) {
+  const { authorId, ...rest } = article;
   return {
-    id: article.id,
-    title: article.title,
-    description: article.description ?? undefined,
-    content: article.content,
-    createdAt: article.createdAt,
-    authorId: article.authorId,
-    updatedAt: article.updatedAt,
-  };
+    ...rest,
+    description: rest.description ?? undefined,
+  }
 }
 
 export async function invalidateArticleRedisCache() {

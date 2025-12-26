@@ -7,8 +7,8 @@ import {
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import ArticleResponseDto from './dto/article-response.dto';
 import {
-  formatArticleResponse,
   invalidateArticleRedisCache,
+  mapArticleToDTO,
 } from './article.util';
 import { createArticleDto } from './dto/create-article.dto';
 import { Prisma } from '@prisma/client';
@@ -44,7 +44,9 @@ export class ArticleService {
     const options = {
       orderBy: { createdAt: Prisma.SortOrder.desc },
       include: {
-        author: true,
+        author: {
+          select: { id: true, name: true },
+        },
       },
     };
 
@@ -61,17 +63,16 @@ export class ArticleService {
 
     this.logger.log(`Fetched ${articles.length} articles`);
 
-    return articles.map((a) => ({
-      ...formatArticleResponse(a),
-      authorName: a.author.name,
-    }));
+    return articles.map(mapArticleToDTO);
   }
 
   async getArticleById(id: number): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { id },
       include: {
-        author: true,
+        author: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -82,10 +83,7 @@ export class ArticleService {
 
     this.logger.log(`Fetched article with ID ${id}`);
 
-    return {
-      ...formatArticleResponse(article),
-      authorName: article.author.name,
-    };
+    return mapArticleToDTO(article);
   }
 
   async createArticle(article: createArticleDto): Promise<ArticleResponseDto> {
@@ -96,10 +94,12 @@ export class ArticleService {
         title: article.title,
         description: article.description,
         content: article.content,
-        authorId: article.authorId,
+        author: { connect: { id: 1 } },
       },
       include: {
-        author: true,
+        author: {
+          select: { id: true,name: true },
+        },
       },
     });
 
@@ -109,10 +109,7 @@ export class ArticleService {
 
     await this.invalidateArticlesCache();
 
-    return {
-      ...formatArticleResponse(newArticle),
-      authorName: newArticle.author.name,
-    };
+    return mapArticleToDTO(newArticle);
   }
 
   private cacheKey(page: number, limit: number) {

@@ -1,13 +1,8 @@
-import { Snippet } from "@prisma/client";
-
-export function formatSnippetResponse(snippet: Snippet) {
+export function mapSnippetToDTO(snippet: any) {
+  const { creatorId, ...rest } = snippet;
   return {
-    id: snippet.id,
-    name: snippet.name,
-    description: snippet.description ?? undefined,
-    code: snippet.code,
-    createdAt: snippet.createdAt,
-    creatorId: snippet.creatorId,
-    updatedAt: snippet.updatedAt,
+    ...rest,
+    description: rest.description ?? undefined,
+    code: rest.code ?? undefined,
   };
 }

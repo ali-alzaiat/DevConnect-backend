@@ -15,8 +15,4 @@ export class createArticleDto {
   @IsString()
   @ApiProperty()
   content: string;
-
-  @IsNumber()
-  @ApiProperty()
-  authorId: number;
 }

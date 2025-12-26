@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 export default class ArticleResponseDto {
   @IsNumber()
@@ -19,13 +19,9 @@ export default class ArticleResponseDto {
   @ApiProperty()
   content: string;
 
-  @IsNumber()
+  @IsObject()
   @ApiProperty()
-  authorId: number;
-
-  @IsString()
-  @ApiProperty()
-  authorName: string;
+  author: {name: string, id: number};
 
   @IsDate()
   @ApiProperty()

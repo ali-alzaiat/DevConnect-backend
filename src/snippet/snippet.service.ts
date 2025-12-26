@@ -5,7 +5,7 @@ import { PrismaService } from 'src/common/prisma/prisma.service';
 import { Cache } from 'cache-manager';
 import { Prisma } from '@prisma/client';
 import SnippetResponseDTO from './dto/snippet-response.dto';
-import { formatSnippetResponse } from './snippet.util';
+import { mapSnippetToDTO } from './snippet.util';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 
 @Injectable()
@@ -36,7 +36,9 @@ export class SnippetService {
             const options = {
               orderBy: { createdAt: Prisma.SortOrder.desc },
               include: {
-                creator: true,
+                creator: {
+                  select: { id: true, name: true },
+                },
                 tags: true
               },
             };
@@ -50,11 +52,7 @@ export class SnippetService {
         
             const snippets = await this.prisma.snippet.findMany(options);
 
-            const res = snippets.map((s) => ({
-              ...formatSnippetResponse(s),
-              creatorName: s.creator.name,
-              tags: s.tags,
-            }));
+            const res = snippets.map(mapSnippetToDTO);
         
             await this.cacheManager.set(cacheKey, res);
         
@@ -67,7 +65,9 @@ export class SnippetService {
       const snippet = await this.prisma.snippet.findUnique({
         where: { id },
         include: {
-          creator: true,
+          creator: {
+            select: { id: true, name: true },
+          },
           tags: true
         }
       });
@@ -78,13 +78,7 @@ export class SnippetService {
       }
 
       this.logger.log(`Fetched snippet with ID ${id}`);
-      const res = {
-        ...formatSnippetResponse(snippet),
-        creatorName: snippet.creator.name,
-        tags: snippet.tags,
-      };
-
-      return res;
+      return mapSnippetToDTO(snippet);
     }
 
     async createSnippet(snippet: CreateSnippetDTO): Promise<SnippetResponseDTO> {
