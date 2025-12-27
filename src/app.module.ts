@@ -10,6 +10,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
 import { SnippetModule } from './snippet/snippet.module';
+import { ProjectModule } from './project/project.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SnippetModule } from './snippet/snippet.module';
       },
     }),
     SnippetModule,
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [

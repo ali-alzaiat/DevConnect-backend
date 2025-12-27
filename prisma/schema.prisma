@@ -44,8 +44,8 @@ model Article {
   updatedAt   DateTime @updatedAt
   
   // Relation to User
-  authorId    Int
-  author      User   @relation(fields: [authorId], references: [id])
+  authorId    Int?
+  author      User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions ArticlePermission[]
@@ -60,8 +60,8 @@ model Project {
   tasks       Task[]
   
   // Relation to User
-  ownerId     Int
-  owner       User   @relation(fields: [ownerId], references: [id])
+  ownerId     Int?
+  owner       User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions ProjectPermission[]
@@ -70,11 +70,13 @@ model Project {
 model Task {
   id          Int     @id @default(autoincrement())
   title       String
+  description String? @db.Text
+  dueDate     DateTime
   status      TaskStatus  @default(TO_DO)
 
   // Relation to Project
   projectId   Int
-  project     Project     @relation(fields: [projectId], references: [id]) 
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade) 
 }
 
 enum TaskStatus {
@@ -95,8 +97,8 @@ model Snippet {
   tags        Tag[]   @relation("SnippetTags")
 
   // Relation to User
-  creatorId   Int
-  creator     User    @relation(fields: [creatorId], references: [id])
+  creatorId   Int?
+  creator     User?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions SnippetPermission[]
@@ -125,11 +127,11 @@ model Message {
   createdAt DateTime  @default(now())
 
   // Relations
-  authorId  Int
+  authorId  Int?
   chatId    Int
 
-  author    User      @relation(fields: [authorId], references: [id])
-  chat      Chat      @relation(fields: [chatId], references: [id])
+  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 }
 
 enum PermissionLevel {
@@ -145,8 +147,8 @@ model ArticlePermission {
   userId     Int
   articleId  Int
 
-  user       User            @relation(fields: [userId], references: [id])
-  article    Article         @relation(fields: [articleId], references: [id])
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article    Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, articleId])
 }
@@ -158,8 +160,8 @@ model ProjectPermission {
   userId     Int
   projectId  Int
 
-  user       User            @relation(fields: [userId], references: [id])
-  project    Project         @relation(fields: [projectId], references: [id])
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId])
 }
@@ -171,8 +173,8 @@ model SnippetPermission {
   userId     Int
   snippetId  Int
 
-  user       User            @relation(fields: [userId], references: [id])
-  snippet    Snippet         @relation(fields: [snippetId], references: [id])
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snippet    Snippet         @relation(fields: [snippetId], references: [id], onDelete: Cascade)
 
   @@unique([userId, snippetId])
 }
