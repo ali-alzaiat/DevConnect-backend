@@ -31,12 +31,16 @@ async function bootstrap() {
 
   app.useLogger(logger);
 
+  //Swagger setup
   const config = new DocumentBuilder()
     .setTitle('DevConnect API')
     .setDescription('The DevConnect API documentation')
     .setVersion('1.0')
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
+
+  const options = { operationIdFactory: (controllerKey: string, methodKey: string) => methodKey };
+
+  const documentFactory = () => SwaggerModule.createDocument(app, config, options);
   SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(process.env.PORT ?? 3000);
