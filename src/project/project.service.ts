@@ -1,79 +1,128 @@
-import { Inject, Injectable, LoggerService, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  LoggerService,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { invalidateProjectRedisCache, mapProjectToDTO } from './project.utils';
-import { Keyv } from '@keyv/redis';
+import { mapProjectToDTO } from './project.utils';
 import { ProjectResponseDto } from './dto/project-response.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, Project, Task, User } from '@prisma/client';
+
+type ProjectWithOwners = Project & {
+  owner: Pick<User, 'id' | 'name'> | null;
+  tasks: Task[];
+};
 
 @Injectable()
 export class ProjectService {
+  private readonly logger: LoggerService = new Logger(ProjectService.name);
+
   constructor(
     private prisma: PrismaService,
-    @Inject(WINSTON_MODULE_NEST_PROVIDER)
-    private readonly logger: LoggerService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {
-    (this.logger as any).setContext(ProjectService.name);
+  ) {}
+
+  private async getCacheKey(page: number, limit: number): Promise<string> {
+    const version = await this.getProjectCacheVersion();
+    return `projects_v${version}_page_${page}_limit_${limit}`;
   }
 
-  private cacheKey(page: number = 1, limit: number = 10): string {
-    return `articles_page_${page}_limit_${limit}`;
+  // Helper to get the current version
+  private async getProjectCacheVersion(): Promise<number> {
+    const version = await this.cacheManager.get('project_version');
+    return (version as number) || 1;
   }
 
-  async invalidateArticlesCache() {
-    invalidateProjectRedisCache();
-
-    // Clear in-memory cache as well
-    const memoryStore = this.cacheManager.stores[0] as Keyv;
-    await memoryStore.clear();
+  // Helper to bump version
+  private async incrementProjectCacheVersion() {
+    const version = await this.getProjectCacheVersion();
+    // Set version in all stores
+    await this.cacheManager.set('project_version', version + 1, 0); // 0 = infinite TTL
   }
-    
-  async createProject(createProjectDto: CreateProjectDto): Promise<ProjectResponseDto> {
-    this.logger.log('Creating a new project with title: ' + createProjectDto.title);
-    const newProject = await this.prisma.project.create({
-      data: {
-        title: createProjectDto.title,
-        description: createProjectDto.description,
-        tasks: {
-          create: createProjectDto.tasks?.map(task => ({
-            title: task.title,
-            description: task.description,
-            dueDate: task.dueDate,
-            status: task.status,
-          })) || [],
+
+  async invalidateProjectsCache() {
+    await this.incrementProjectCacheVersion();
+  }
+
+  async createProject(
+    createProjectDto: CreateProjectDto,
+  ): Promise<ProjectResponseDto> {
+    this.logger.log(
+      'Creating a new project with title: ' + createProjectDto.title,
+    );
+    let newProject: ProjectWithOwners;
+
+    try {
+      // 1. Database Operation
+      newProject = await this.prisma.project.create({
+        data: {
+          title: createProjectDto.title,
+          description: createProjectDto.description,
+          tasks: {
+            create:
+              createProjectDto.tasks?.map((task) => ({
+                title: task.title,
+                description: task.description,
+                dueDate: task.dueDate,
+                status: task.status,
+              })) || [],
+          },
+          owner: { connect: { id: 1 } },
         },
-        owner: {connect: {id: 1}}, // Temporary hardcoded owner
-      },
-      include: {
-        tasks: true,
-        owner: { select: { id: true, name: true } }
-      }
-    })
-    this.logger.log('Project created successfully with title: ' + newProject.title);
-    invalidateProjectRedisCache();
+        include: {
+          tasks: true,
+          owner: { select: { id: true, name: true } },
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to create project in database', error.stack);
+      throw new InternalServerErrorException(
+        'Could not create project due to database error',
+      );
+    }
+    this.logger.log(
+      'Project created successfully with title: ' + newProject.title,
+    );
+    this.invalidateProjectsCache();
     return mapProjectToDTO(newProject);
   }
 
-  async getAllProjects(page: number = 1, limit: number = 10): Promise<ProjectResponseDto[]> {
-    const cacheKey = this.cacheKey(page, limit);
-    const cachedProjects: ProjectResponseDto[] | undefined = await this.cacheManager.get(cacheKey);
+  async getAllProjects(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<ProjectResponseDto[]> {
+    const cacheKey = await this.getCacheKey(page, limit);
+    const cachedProjects: ProjectResponseDto[] | undefined =
+      await this.cacheManager.get(cacheKey);
     if (cachedProjects) {
-      this.logger.log(`Returning cached projects for page ${page} with limit ${limit}`);
+      this.logger.log(
+        `Returning cached projects for page ${page} with limit ${limit}`,
+      );
       return cachedProjects;
     }
-    const projects = await this.prisma.project.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      include: {
-        tasks: true,
-        owner: { select: { id: true, name: true } }
-      }
-    });
+    let projects: ProjectWithOwners[];
+    try {
+      projects = await this.prisma.project.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          tasks: true,
+          owner: { select: { id: true, name: true } },
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to get projects from database', error.stack);
+      throw new InternalServerErrorException(
+        'Could not get projects due to database error',
+      );
+    }
 
     const res = projects.map(mapProjectToDTO);
     this.logger.log(`Fetched ${projects.length} projects from database`);
@@ -82,14 +131,25 @@ export class ProjectService {
   }
 
   async getProjectById(id: number): Promise<ProjectResponseDto> {
-    const project = await this.prisma.project.findUnique({
-      where: { id },
-      include: {
-        tasks: true,
-        owner: { select: { id: true, name: true } }
-      }
-    });
-    if(!project) {
+    let project: ProjectWithOwners | null;
+    try {
+      project = await this.prisma.project.findUnique({
+        where: { id },
+        include: {
+          tasks: true,
+          owner: { select: { id: true, name: true } },
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get project with id ${id} from database`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Could not get project due to database error',
+      );
+    }
+    if (!project) {
       this.logger.warn(`Project with ID ${id} not found`);
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
@@ -97,8 +157,77 @@ export class ProjectService {
     return mapProjectToDTO(project);
   }
 
-  update(id: number, updateProjectDto: UpdateProjectDto) {
-    return `This action updates a #${id} project`;
+  async update(id: number, updateProjectDto: UpdateProjectDto) {
+    this.logger.log(`Updating project with ID: ${id}`);
+
+    const { tasks, ...projectData } = updateProjectDto;
+
+    try {
+      const updatedProject = await this.prisma.$transaction(async (tx) => {
+        await tx.project.update({
+          where: { id },
+          data: projectData,
+          include: { tasks: true },
+        });
+
+        if (tasks) {
+          const tasksToUpdate = tasks.filter((t) => t.id);
+          const tasksToCreate = tasks.filter((t) => !t.id);
+
+          const incomingIds: number[] = tasksToUpdate.map((t) => t.id!);
+          await tx.task.deleteMany({
+            where: {
+              projectId: id,
+              id: { notIn: incomingIds },
+            },
+          });
+
+          await Promise.all(
+            tasksToUpdate.map((task) =>
+              tx.task.update({
+                where: { id: task.id },
+                data: {
+                  title: task.title,
+                  description: task.description,
+                  status: task.status,
+                  dueDate: task.dueDate,
+                },
+              }),
+            ),
+          );
+
+          if (tasksToCreate.length > 0) {
+            await tx.task.createMany({
+              data: tasksToCreate.map((task) => ({
+                ...task,
+                projectId: id,
+              })),
+            });
+          }
+        }
+
+        return tx.project.findUnique({
+          where: { id },
+          include: {
+            tasks: true,
+            owner: { select: { id: true, name: true } },
+          },
+        });
+      });
+
+      await this.invalidateProjectsCache();
+
+      return mapProjectToDTO(updatedProject!);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(`Project with ID ${id} not found for update`);
+        throw new NotFoundException('Project not found');
+      }
+      throw error;
+    }
   }
 
   async deleteProject(id: number): Promise<void> {
@@ -107,7 +236,7 @@ export class ProjectService {
         where: { id },
       });
       this.logger.log(`Deleted project with ID ${id}`);
-      await this.invalidateArticlesCache();
+      await this.invalidateProjectsCache();
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
