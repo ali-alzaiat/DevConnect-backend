@@ -41,6 +41,7 @@ export class ProjectController {
   }
 
   @Put(':id')
+  @HttpCode(200)
   update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
     return this.projectService.update(+id, updateProjectDto);
   }
