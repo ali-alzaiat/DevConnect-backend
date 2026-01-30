@@ -1,16 +1,19 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { createArticleDto } from './dto/create-article.dto';
 import ArticleResponseDto from './dto/article-response.dto';
 import { ApiQuery } from '@nestjs/swagger';
+import { updateArticleDto } from './dto/update-article.dto';
 
 @Controller('article')
 export class ArticleController {
@@ -27,9 +30,9 @@ export class ArticleController {
     return await this.articleService.getAllArticles(page, limit);
   }
 
-  @Get('/:articleId')
+  @Get(':id')
   @HttpCode(200)
-  getArticleById(@Param('articleId') id: number): Promise<ArticleResponseDto> {
+  getArticleById(@Param('id') id: number): Promise<ArticleResponseDto> {
     return this.articleService.getArticleById(id);
   }
 
@@ -37,5 +40,20 @@ export class ArticleController {
   @HttpCode(201)
   createArticle(@Body() body: createArticleDto): Promise<ArticleResponseDto> {
     return this.articleService.createArticle(body);
+  }
+
+  @Put(':id')
+  @HttpCode(200)
+  updateArticle(
+    @Param('id') id: number,
+    @Body() updateArticleDto: updateArticleDto,
+  ) {
+    return this.articleService.updateArticle(id, updateArticleDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  deleteArticle(@Param('id') id: number) {
+    return this.articleService.deleteArticle(id);
   }
 }

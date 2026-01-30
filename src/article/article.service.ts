@@ -1,38 +1,54 @@
 import {
   Inject,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   LoggerService,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import ArticleResponseDto from './dto/article-response.dto';
-import {
-  invalidateArticleRedisCache,
-  mapArticleToDTO,
-} from './article.util';
+import { mapArticleToDTO } from './article.util';
 import { createArticleDto } from './dto/create-article.dto';
-import { Prisma } from '@prisma/client';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { Article, Prisma, User } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { Keyv } from 'keyv';
+import { updateArticleDto } from './dto/update-article.dto';
+
+type ArticleWithAuthor = Article & { author: Pick<User, 'id' | 'name'> | null };
 
 @Injectable()
 export class ArticleService {
+  private readonly logger: LoggerService = new Logger(ArticleService.name);
   constructor(
     private prisma: PrismaService,
-    @Inject(WINSTON_MODULE_NEST_PROVIDER)
-    private readonly logger: LoggerService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {
-    (this.logger as any).setContext(ArticleService.name);
+  ) {}
+
+  private async getArticalVersion(): Promise<number> {
+    const v = await this.cacheManager.get('article_version');
+    return (v as number) || 1;
+  }
+
+  private async getCacheKey(page: number, limit: number) {
+    const version = await this.getArticalVersion();
+    return `articles_v_${version}_page_${page}_limit_${limit}`;
+  }
+
+  private async incrementArticleVersion() {
+    const version = await this.getArticalVersion();
+    this.cacheManager.set('article_version', version + 1, 0);
+  }
+
+  async invalidateArticlesCache() {
+    this.incrementArticleVersion();
   }
 
   async getAllArticles(
-    page: number,
-    limit: number,
+    page: number = 1,
+    limit: number = 10,
   ): Promise<ArticleResponseDto[]> {
-    const cacheKey = this.cacheKey(page, limit);
+    const cacheKey = await this.getCacheKey(page, limit);
     const cachedArticles: ArticleResponseDto[] | undefined =
       await this.cacheManager.get(cacheKey);
     if (cachedArticles) {
@@ -41,23 +57,26 @@ export class ArticleService {
       );
       return cachedArticles;
     }
-    const options = {
-      orderBy: { createdAt: Prisma.SortOrder.desc },
-      include: {
-        author: {
-          select: { id: true, name: true },
-        },
-      },
-    };
 
-    if (page && limit) {
-      Object.assign(options, {
+    let articles: Article[];
+
+    try {
+      articles = await this.prisma.article.findMany({
         skip: (page - 1) * limit,
         take: limit,
+        orderBy: { createdAt: Prisma.SortOrder.desc },
+        include: {
+          author: {
+            select: { id: true, name: true },
+          },
+        },
       });
+    } catch (error) {
+      this.logger.error('Failed to get projects from database', error.stack);
+      throw new InternalServerErrorException(
+        'Could not get projects due to database error',
+      );
     }
-
-    const articles = await this.prisma.article.findMany(options);
 
     await this.cacheManager.set(cacheKey, articles);
 
@@ -67,14 +86,32 @@ export class ArticleService {
   }
 
   async getArticleById(id: number): Promise<ArticleResponseDto> {
-    const article = await this.prisma.article.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: { id: true, name: true },
+    let article: ArticleWithAuthor | null;
+    try {
+      article = await this.prisma.article.findUnique({
+        where: { id },
+        include: {
+          author: {
+            select: { id: true, name: true },
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(`Article with ID ${id} not found for update`);
+        throw new NotFoundException('Article not found');
+      }
+      this.logger.error(
+        `Failed to get article with id ${id} from database`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Could not get article due to database error',
+      );
+    }
 
     if (!article) {
       this.logger.warn(`Article with ID ${id} not found`);
@@ -89,19 +126,29 @@ export class ArticleService {
   async createArticle(article: createArticleDto): Promise<ArticleResponseDto> {
     this.logger.log(`Creating article titled "${article.title}"`);
 
-    const newArticle = await this.prisma.article.create({
-      data: {
-        title: article.title,
-        description: article.description,
-        content: article.content,
-        author: { connect: { id: 1 } },
-      },
-      include: {
-        author: {
-          select: { id: true,name: true },
+    let newArticle: ArticleWithAuthor;
+
+    try {
+      newArticle = await this.prisma.article.create({
+        data: {
+          title: article.title,
+          description: article.description,
+          content: article.content,
+          author: { connect: { id: 1 } },
         },
-      },
-    });
+        include: {
+          author: {
+            select: { id: true, name: true },
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Failed to create an article because of a database error',
+        error.stack,
+      );
+      throw new InternalServerErrorException('Failed to create an article');
+    }
 
     this.logger.log(
       `Created article titled "${article.title}" with ID ${newArticle.id}`,
@@ -112,15 +159,51 @@ export class ArticleService {
     return mapArticleToDTO(newArticle);
   }
 
-  private cacheKey(page: number, limit: number) {
-    return `articles_page_${page}_limit_${limit}`;
+  async updateArticle(
+    articleId: number,
+    updateArticleDto: updateArticleDto,
+  ): Promise<ArticleResponseDto> {
+    let article: ArticleWithAuthor;
+    this.logger.log(
+      `Updating article with ID ${articleId} to ${JSON.stringify(updateArticleDto)}`,
+    );
+    try {
+      article = await this.prisma.article.update({
+        where: { id: articleId },
+        data: updateArticleDto,
+        include: { author: { select: { id: true, name: true } } },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(`Article with ID ${articleId} not found for update`);
+        throw new NotFoundException('Article not found');
+      }
+      throw error;
+    }
+    this.logger.log(`Updated article with ID ${articleId}`);
+    await this.invalidateArticlesCache();
+    return mapArticleToDTO(article);
   }
 
-  async invalidateArticlesCache() {
-    invalidateArticleRedisCache();
-
-    // Clear in-memory cache as well
-    const memoryStore = this.cacheManager.stores[0] as Keyv;
-    await memoryStore.clear();
+  async deleteArticle(id: number): Promise<void> {
+    try {
+      await this.prisma.article.delete({
+        where: { id },
+      });
+      this.logger.log(`Deleted article with ID ${id}`);
+      await this.invalidateArticlesCache();
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        this.logger.warn(`Article with ID ${id} not found for deletion`);
+        throw new NotFoundException('Article not found');
+      }
+      throw error;
+    }
   }
 }
