@@ -1,21 +1,22 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsOptional, IsString } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { Tag } from '@prisma/client';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export default class CreateSnippetDTO {
-    @IsString()
-    @ApiProperty()
-    name: string;
+  @IsString()
+  @ApiProperty()
+  name: string;
 
-    @IsArray()
-    @ApiProperty()
-    tags: string[];
+  @IsArray()
+  @ApiProperty()
+  tags: string[];
 
-    @IsString()
-    @ApiProperty()
-    code: string;
+  @IsString()
+  @ApiProperty()
+  code: string;
 
-    @IsString()
-    @ApiProperty()
-    @IsOptional()
-    description?: string | null;
+  @IsString()
+  @ApiProperty()
+  @IsOptional()
+  description?: string | null;
 }
