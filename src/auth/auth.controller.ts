@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { Public } from './decorator/public.decorator';
 import { ApiSecurity } from '@nestjs/swagger';
+import { CurrentUser } from './decorator/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -30,5 +31,13 @@ export class AuthController {
   @ApiSecurity({})
   signup(@Body() singupDto: SignupDto) {
     return this.authService.signup(singupDto);
+  }
+
+  @Public()
+  @Get('me')
+  @ApiSecurity({})
+  @HttpCode(HttpStatus.OK)
+  checkLoginStatus(@CurrentUser() user: any) {
+    return user;
   }
 }
