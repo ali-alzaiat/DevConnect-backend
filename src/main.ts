@@ -36,11 +36,25 @@ async function bootstrap() {
     .setTitle('DevConnect API')
     .setDescription('The DevConnect API documentation')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        in: 'header',
+      },
+      'JWT-auth', // The name of the scheme
+    )
+    // This adds the "lock" icon to every endpoint automatically
+    .addSecurityRequirements('JWT-auth')
     .build();
 
-  const options = { operationIdFactory: (controllerKey: string, methodKey: string) => methodKey };
+  const options = {
+    operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+  };
 
-  const documentFactory = () => SwaggerModule.createDocument(app, config, options);
+  const documentFactory = () =>
+    SwaggerModule.createDocument(app, config, options);
   SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(process.env.PORT ?? 3000);

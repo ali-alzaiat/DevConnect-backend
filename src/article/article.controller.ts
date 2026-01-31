@@ -14,6 +14,8 @@ import { createArticleDto } from './dto/create-article.dto';
 import ArticleResponseDto from './dto/article-response.dto';
 import { ApiQuery } from '@nestjs/swagger';
 import { updateArticleDto } from './dto/update-article.dto';
+import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 @Controller('article')
 export class ArticleController {
@@ -38,8 +40,11 @@ export class ArticleController {
 
   @Post('/create')
   @HttpCode(201)
-  createArticle(@Body() body: createArticleDto): Promise<ArticleResponseDto> {
-    return this.articleService.createArticle(body);
+  createArticle(
+    @Body() body: createArticleDto,
+    @CurrentUser() user: UserEntity,
+  ): Promise<ArticleResponseDto> {
+    return this.articleService.createArticle(body, user);
   }
 
   @Put(':id')

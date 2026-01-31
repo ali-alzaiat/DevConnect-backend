@@ -14,6 +14,7 @@ import SnippetResponseDTO from './dto/snippet-response.dto';
 import { mapSnippetToDTO } from './snippet.util';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 import { UpdateSnippetDto } from './dto/update-snippet.dto';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 type SnippetWithCreator = Snippet & {
   creator: Pick<User, 'id' | 'name'> | null;
@@ -130,7 +131,10 @@ export class SnippetService {
     return mapSnippetToDTO(snippet);
   }
 
-  async createSnippet(snippet: CreateSnippetDTO): Promise<SnippetResponseDTO> {
+  async createSnippet(
+    snippet: CreateSnippetDTO,
+    user: UserEntity,
+  ): Promise<SnippetResponseDTO> {
     let newSnippet: SnippetWithCreator;
 
     try {
@@ -139,7 +143,7 @@ export class SnippetService {
           name: snippet.name,
           code: snippet.code,
           description: snippet.description,
-          creator: { connect: { id: 1 } },
+          creator: { connect: { id: user.userId } },
           tags: {
             connectOrCreate: snippet.tags.map((name) => ({
               where: { name },

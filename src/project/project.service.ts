@@ -14,6 +14,7 @@ import { Cache } from 'cache-manager';
 import { mapProjectToDTO } from './project.utils';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { Prisma, Project, Task, User } from '@prisma/client';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 type ProjectWithOwners = Project & {
   owner: Pick<User, 'id' | 'name'> | null;
@@ -53,6 +54,7 @@ export class ProjectService {
 
   async createProject(
     createProjectDto: CreateProjectDto,
+    user: UserEntity,
   ): Promise<ProjectResponseDto> {
     this.logger.log(
       'Creating a new project with title: ' + createProjectDto.title,
@@ -74,7 +76,7 @@ export class ProjectService {
                 status: task.status,
               })) || [],
           },
-          owner: { connect: { id: 1 } },
+          owner: { connect: { id: user.userId } },
         },
         include: {
           tasks: true,

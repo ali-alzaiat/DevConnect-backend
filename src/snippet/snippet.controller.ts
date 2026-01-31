@@ -14,6 +14,8 @@ import { ApiQuery } from '@nestjs/swagger';
 import SnippetResponseDTO from './dto/snippet-response.dto';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 import { UpdateSnippetDto } from './dto/update-snippet.dto';
+import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 @Controller('snippet')
 export class SnippetController {
@@ -38,8 +40,11 @@ export class SnippetController {
 
   @Post('/create')
   @HttpCode(201)
-  createSnippet(@Body() body: CreateSnippetDTO): Promise<SnippetResponseDTO> {
-    return this.snippetService.createSnippet(body);
+  createSnippet(
+    @Body() body: CreateSnippetDTO,
+    @CurrentUser() user: UserEntity,
+  ): Promise<SnippetResponseDTO> {
+    return this.snippetService.createSnippet(body, user);
   }
 
   @Put(':id')

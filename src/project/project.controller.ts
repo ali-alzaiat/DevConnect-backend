@@ -13,6 +13,8 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { ApiQuery } from '@nestjs/swagger';
+import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 @Controller('project')
 export class ProjectController {
@@ -22,8 +24,9 @@ export class ProjectController {
   @HttpCode(201)
   createProject(
     @Body() createProjectDto: CreateProjectDto,
+    @CurrentUser() user: UserEntity,
   ): Promise<ProjectResponseDto> {
-    return this.projectService.createProject(createProjectDto);
+    return this.projectService.createProject(createProjectDto, user);
   }
 
   @Get()

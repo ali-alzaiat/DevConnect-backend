@@ -14,6 +14,7 @@ import { Article, Prisma, User } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { updateArticleDto } from './dto/update-article.dto';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 type ArticleWithAuthor = Article & { author: Pick<User, 'id' | 'name'> | null };
 
@@ -123,7 +124,10 @@ export class ArticleService {
     return mapArticleToDTO(article);
   }
 
-  async createArticle(article: createArticleDto): Promise<ArticleResponseDto> {
+  async createArticle(
+    article: createArticleDto,
+    user: UserEntity,
+  ): Promise<ArticleResponseDto> {
     this.logger.log(`Creating article titled "${article.title}"`);
 
     let newArticle: ArticleWithAuthor;
@@ -134,7 +138,7 @@ export class ArticleService {
           title: article.title,
           description: article.description,
           content: article.content,
-          author: { connect: { id: 1 } },
+          author: { connect: { id: user.userId } },
         },
         include: {
           author: {

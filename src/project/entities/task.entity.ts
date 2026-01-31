@@ -1,7 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TaskStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsDate,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+
+export enum TaskStatusEnum {
+  TO_DO = 'TO_DO',
+  IN_PROGRESS = 'IN_PROGRESS',
+  DONE = 'DONE',
+}
 
 export class Task {
   @IsNumber()
@@ -24,5 +36,6 @@ export class Task {
   dueDate: Date;
 
   @ApiProperty()
-  status: TaskStatus;
+  @IsEnum(TaskStatus)
+  status: TaskStatusEnum;
 }
