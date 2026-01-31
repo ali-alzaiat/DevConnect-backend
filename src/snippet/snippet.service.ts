@@ -64,6 +64,8 @@ export class SnippetService {
 
     try {
       snippets = await this.prisma.snippet.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
         orderBy: { createdAt: Prisma.SortOrder.desc },
         include: {
           creator: {
