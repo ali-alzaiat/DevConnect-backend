@@ -6,22 +6,28 @@ import {
   Param,
   Delete,
   HttpCode,
-  Put,
+  Patch,
+  ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
+@ApiTags('Projects')
 @Controller('project')
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
   @Post()
   @HttpCode(201)
+  @ApiOperation({ summary: 'Create a new project' })
+  @ApiResponse({ status: 201, type: ProjectResponseDto })
   createProject(
     @Body() createProjectDto: CreateProjectDto,
     @CurrentUser() user: UserEntity,
@@ -31,30 +37,48 @@ export class ProjectController {
 
   @Get()
   @HttpCode(200)
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  getAllProjects(): Promise<ProjectResponseDto[]> {
-    return this.projectService.getAllProjects();
+  @ApiOperation({ summary: 'Get all projects with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  async getAllProjects(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
+    return await this.projectService.getAllProjects(page, limit);
   }
 
   @Get(':id')
   @HttpCode(200)
-  getProjectById(@Param('id') id: string): Promise<ProjectResponseDto> {
-    return this.projectService.getProjectById(+id);
+  @ApiOperation({ summary: 'Get a project by ID' })
+  @ApiResponse({ status: 200, type: ProjectResponseDto })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  getProjectById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ProjectResponseDto> {
+    return this.projectService.getProjectById(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Update a project' })
+  @ApiResponse({ status: 200, type: ProjectResponseDto })
   updateProject(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectDto: UpdateProjectDto,
+    @CurrentUser() user: UserEntity,
   ) {
-    return this.projectService.update(+id, updateProjectDto);
+    return this.projectService.update(id, updateProjectDto, user.userId);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  deleteProject(@Param('id') id: string) {
-    return this.projectService.deleteProject(+id);
+  @ApiOperation({ summary: 'Delete a project' })
+  @ApiResponse({ status: 204, description: 'Project deleted' })
+  deleteProject(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.projectService.deleteProject(id, user.userId);
   }
 }

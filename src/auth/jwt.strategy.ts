@@ -2,10 +2,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private configService: ConfigService) {
     super({
       // "Look for the token in the 'Authorization' header"
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -14,7 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
 
       // "Use this secret key to verify the signature"
-      secretOrKey: process.env.JWT_SECRET || 'secretKey',
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'secretKey',
     });
   }
 

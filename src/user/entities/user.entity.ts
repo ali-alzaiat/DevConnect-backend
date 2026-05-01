@@ -1,5 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsObject } from 'class-validator';
+
+export class UserPreferenceEntity {
+  @IsString()
+  @ApiProperty()
+  theme: string;
+
+  @IsString()
+  @ApiProperty()
+  language: string;
+}
 
 export class UserEntity {
   @IsString()
@@ -19,4 +29,9 @@ export class UserEntity {
   @IsOptional()
   @ApiProperty({ required: false })
   password?: string;
+
+  @IsObject()
+  @IsOptional()
+  @ApiProperty({ required: false, type: UserPreferenceEntity })
+  preferences?: UserPreferenceEntity;
 }

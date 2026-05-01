@@ -6,40 +6,52 @@ import {
   HttpCode,
   Param,
   Post,
-  Put,
+  Patch,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { SnippetService } from './snippet.service';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import SnippetResponseDTO from './dto/snippet-response.dto';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 import { UpdateSnippetDto } from './dto/update-snippet.dto';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
+@ApiTags('Snippets')
 @Controller('snippet')
 export class SnippetController {
   constructor(private snippetService: SnippetService) {}
 
   @Get()
   @HttpCode(200)
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  async getAllArticles(
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-  ): Promise<SnippetResponseDTO[]> {
+  @ApiOperation({ summary: 'Get all snippets with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  async getAllSnippets(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<PaginatedResponseDto<SnippetResponseDTO>> {
     return await this.snippetService.getAllSnippets(page, limit);
   }
 
   @Get(':id')
   @HttpCode(200)
-  getSnippetById(@Param('id') id: number): Promise<SnippetResponseDTO> {
+  @ApiOperation({ summary: 'Get a snippet by ID' })
+  @ApiResponse({ status: 200, type: SnippetResponseDTO })
+  @ApiResponse({ status: 404, description: 'Snippet not found' })
+  getSnippetById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<SnippetResponseDTO> {
     return this.snippetService.getSnippetById(id);
   }
 
-  @Post('/create')
+  @Post()
   @HttpCode(201)
+  @ApiOperation({ summary: 'Create a new snippet' })
+  @ApiResponse({ status: 201, type: SnippetResponseDTO })
   createSnippet(
     @Body() body: CreateSnippetDTO,
     @CurrentUser() user: UserEntity,
@@ -47,18 +59,26 @@ export class SnippetController {
     return this.snippetService.createSnippet(body, user);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Update a snippet' })
+  @ApiResponse({ status: 200, type: SnippetResponseDTO })
   updateSnippet(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateSnippetDto: UpdateSnippetDto,
+    @CurrentUser() user: UserEntity,
   ): Promise<SnippetResponseDTO> {
-    return this.snippetService.updateSnippet(id, updateSnippetDto);
+    return this.snippetService.updateSnippet(id, updateSnippetDto, user.userId);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  deleteSnippet(@Param('id') id: number) {
-    return this.snippetService.deleteSnippet(id);
+  @ApiOperation({ summary: 'Delete a snippet' })
+  @ApiResponse({ status: 204, description: 'Snippet deleted' })
+  deleteSnippet(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.snippetService.deleteSnippet(id, user.userId);
   }
 }

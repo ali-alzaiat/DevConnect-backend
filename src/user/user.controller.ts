@@ -8,47 +8,77 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
+import { UserEntity } from 'src/user/entities/user.entity';
 
+@ApiTags('Users')
+@ApiBearerAuth('JWT-auth')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiResponse({ status: 201, description: 'User created' })
   createUser(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  findAllUsers() {
-    return this.userService.findAll();
+  @ApiOperation({ summary: 'Get all users with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  findAllUsers(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<PaginatedResponseDto<any>> {
+    return this.userService.findAll(page, limit);
   }
 
-  @Get(':id')
+  @Get('id/:id')
   @HttpCode(HttpStatus.OK)
-  findUserByID(@Param('id') id: string) {
-    return this.userService.findById(+id);
+  @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  findUserByID(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.findById(id);
   }
 
-  @Get(':email')
+  @Get('email/:email')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get a user by email' })
+  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   findUserByEmail(@Param('email') email: string) {
     return this.userService.findByEmail(email);
   }
 
-  @Patch(':id')
+  @Patch()
   @HttpCode(HttpStatus.OK)
-  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  @ApiOperation({ summary: 'Update your own profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
+  updateProfile(
+    @CurrentUser() user: UserEntity,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.userService.update(user.userId, updateUserDto);
   }
 
-  @Delete(':id')
+  @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteUser(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  @ApiOperation({ summary: 'Delete your own profile' })
+  @ApiResponse({ status: 204, description: 'Profile deleted' })
+  deleteProfile(@CurrentUser() user: UserEntity) {
+    return this.userService.remove(user.userId);
   }
 }

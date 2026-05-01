@@ -9,35 +9,34 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
-import { Public } from './decorator/public.decorator';
-import { ApiSecurity } from '@nestjs/swagger';
+import { UserService } from 'src/user/user.service';
+import { PublicRoute } from './decorator/public-route.decorator';
 import { CurrentUser } from './decorator/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
 
-  @Public()
+  @PublicRoute()
   @Post('/login')
   @HttpCode(HttpStatus.OK)
-  @ApiSecurity({})
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
-  @Public()
+  @PublicRoute()
   @Post('signup')
   @HttpCode(HttpStatus.OK)
-  @ApiSecurity({})
-  signup(@Body() singupDto: SignupDto) {
-    return this.authService.signup(singupDto);
+  signup(@Body() signupDto: SignupDto) {
+    return this.authService.signup(signupDto);
   }
 
-  @Public()
   @Get('me')
-  @ApiSecurity({})
   @HttpCode(HttpStatus.OK)
-  checkLoginStatus(@CurrentUser() user: any) {
-    return user;
+  async checkLoginStatus(@CurrentUser() user: any) {
+    return this.userService.findById(user.userId);
   }
 }

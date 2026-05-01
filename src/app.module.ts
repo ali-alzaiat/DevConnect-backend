@@ -15,33 +15,41 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     ArticleModule,
     PrismaModule,
     LoggerModule,
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: async () => {
+      useFactory: async (configService: ConfigService) => {
         return {
-          stores: [new Keyv(), new KeyvRedis(process.env.REDIS_URL)],
+          stores: [
+            new Keyv(),
+            new KeyvRedis(configService.get<string>('REDIS_URL')),
+          ],
           ttl: 1000 * 60 * 5, // 5 minutes in milliseconds
         };
       },
+      inject: [ConfigService],
     }),
     SnippetModule,
     ProjectModule,
     AuthModule,
     UserModule,
-    JwtModule.register({
-      global: true, // Optional: makes it available everywhere without re-importing
-      secret: process.env.JWT_SECRET || 'secretKey',
-      signOptions: { expiresIn: '1h' },
-    }),
-    ConfigModule.forRoot({
-      isGlobal: true,
+    JwtModule.registerAsync({
+      global: true,
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET') || 'secretKey',
+        signOptions: { expiresIn: '1h' },
+      }),
+      inject: [ConfigService],
     }),
   ],
   controllers: [AppController],

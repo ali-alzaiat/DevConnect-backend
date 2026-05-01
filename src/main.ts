@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -10,6 +12,9 @@ async function bootstrap() {
   });
 
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  const configService = app.get<ConfigService>(ConfigService);
+
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -21,10 +26,11 @@ async function bootstrap() {
     }),
   );
 
+  const frontendUrl = configService.get<string>('FRONTEND_URL');
   app.enableCors({
-    origin: ['https://localhost:5173'],
+    origin: frontendUrl ? [frontendUrl] : false,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true, // if using cookies or sessions
+    credentials: true,
   });
 
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
@@ -57,6 +63,6 @@ async function bootstrap() {
     SwaggerModule.createDocument(app, config, options);
   SwaggerModule.setup('api', app, documentFactory);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(configService.get<number>('PORT') ?? 3000);
 }
 bootstrap();

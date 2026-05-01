@@ -1,7 +1,7 @@
-import {
+ import { 
+  ForbiddenException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   LoggerService,
   NotFoundException,
@@ -15,6 +15,7 @@ import { mapProjectToDTO } from './project.utils';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { Prisma, Project, Task, User } from '@prisma/client';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
 type ProjectWithOwners = Project & {
   owner: Pick<User, 'id' | 'name'> | null;
@@ -59,98 +60,88 @@ export class ProjectService {
     this.logger.log(
       'Creating a new project with title: ' + createProjectDto.title,
     );
-    let newProject: ProjectWithOwners;
-
-    try {
-      // 1. Database Operation
-      newProject = await this.prisma.project.create({
-        data: {
-          title: createProjectDto.title,
-          description: createProjectDto.description,
-          tasks: {
-            create:
-              createProjectDto.tasks?.map((task) => ({
-                title: task.title,
-                description: task.description,
-                dueDate: task.dueDate,
-                status: task.status,
-              })) || [],
-          },
-          owner: { connect: { id: user.userId } },
+    const newProject = await this.prisma.project.create({
+      data: {
+        title: createProjectDto.title,
+        description: createProjectDto.description,
+        tasks: {
+          create:
+            createProjectDto.tasks?.map((task) => ({
+              title: task.title,
+              description: task.description,
+              dueDate: task.dueDate,
+              status: task.status,
+            })) || [],
         },
-        include: {
-          tasks: true,
-          owner: { select: { id: true, name: true } },
-        },
-      });
-    } catch (error) {
-      this.logger.error('Failed to create project in database', error.stack);
-      throw new InternalServerErrorException(
-        'Could not create project due to database error',
-      );
-    }
+        owner: { connect: { id: user.userId } },
+      },
+      include: {
+        tasks: true,
+        owner: { select: { id: true, name: true } },
+      },
+    });
     this.logger.log(
       'Project created successfully with title: ' + newProject.title,
     );
-    this.invalidateProjectsCache();
+    await this.invalidateProjectsCache();
     return mapProjectToDTO(newProject);
   }
 
   async getAllProjects(
     page: number = 1,
     limit: number = 10,
-  ): Promise<ProjectResponseDto[]> {
+  ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
     const cacheKey = await this.getCacheKey(page, limit);
-    const cachedProjects: ProjectResponseDto[] | undefined =
+    const cachedData: PaginatedResponseDto<ProjectResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
-    if (cachedProjects) {
+
+    if (cachedData) {
       this.logger.log(
         `Returning cached projects for page ${page} with limit ${limit}`,
       );
-      return cachedProjects;
+      return cachedData;
     }
-    let projects: ProjectWithOwners[];
-    try {
-      projects = await this.prisma.project.findMany({
+
+    const [projects, total] = await Promise.all([
+      this.prisma.project.findMany({
         skip: (page - 1) * limit,
         take: limit,
         include: {
           tasks: true,
           owner: { select: { id: true, name: true } },
         },
-      });
-    } catch (error) {
-      this.logger.error('Failed to get projects from database', error.stack);
-      throw new InternalServerErrorException(
-        'Could not get projects due to database error',
-      );
-    }
+      }),
+      this.prisma.project.count(),
+    ]);
 
-    const res = projects.map(mapProjectToDTO);
-    this.logger.log(`Fetched ${projects.length} projects from database`);
-    this.cacheManager.set(cacheKey, res);
+    const data = projects.map(mapProjectToDTO);
+    const totalPages = Math.ceil(total / limit);
+
+    const res: PaginatedResponseDto<ProjectResponseDto> = {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+
+    this.logger.log(
+      `Fetched ${projects.length} projects from database (Total: ${total})`,
+    );
+    await this.cacheManager.set(cacheKey, res);
     return res;
   }
 
   async getProjectById(id: number): Promise<ProjectResponseDto> {
-    let project: ProjectWithOwners | null;
-    try {
-      project = await this.prisma.project.findUnique({
-        where: { id },
-        include: {
-          tasks: true,
-          owner: { select: { id: true, name: true } },
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to get project with id ${id} from database`,
-        error.stack,
-      );
-      throw new InternalServerErrorException(
-        'Could not get project due to database error',
-      );
-    }
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: {
+        tasks: true,
+        owner: { select: { id: true, name: true } },
+      },
+    });
     if (!project) {
       this.logger.warn(`Project with ID ${id} not found`);
       throw new NotFoundException(`Project with ID ${id} not found`);
@@ -159,95 +150,105 @@ export class ProjectService {
     return mapProjectToDTO(project);
   }
 
-  async update(id: number, updateProjectDto: UpdateProjectDto) {
+  async update(
+    id: number,
+    updateProjectDto: UpdateProjectDto,
+    userId: number,
+  ) {
     this.logger.log(`Updating project with ID: ${id}`);
+
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException(`Project with ID ${id} not found`);
+    }
+
+    if (existingProject.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this project',
+      );
+    }
 
     const { tasks, ...projectData } = updateProjectDto;
 
-    try {
-      const updatedProject = await this.prisma.$transaction(async (tx) => {
-        await tx.project.update({
-          where: { id },
-          data: projectData,
-          include: { tasks: true },
-        });
+    const updatedProject = await this.prisma.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id },
+        data: projectData,
+        include: { tasks: true },
+      });
 
-        if (tasks) {
-          const tasksToUpdate = tasks.filter((t) => t.id);
-          const tasksToCreate = tasks.filter((t) => !t.id);
+      if (tasks) {
+        const tasksToUpdate = tasks.filter((t) => t.id);
+        const tasksToCreate = tasks.filter((t) => !t.id);
 
-          const incomingIds: number[] = tasksToUpdate.map((t) => t.id!);
-          await tx.task.deleteMany({
-            where: {
-              projectId: id,
-              id: { notIn: incomingIds },
-            },
-          });
-
-          await Promise.all(
-            tasksToUpdate.map((task) =>
-              tx.task.update({
-                where: { id: task.id },
-                data: {
-                  title: task.title,
-                  description: task.description,
-                  status: task.status,
-                  dueDate: task.dueDate,
-                },
-              }),
-            ),
-          );
-
-          if (tasksToCreate.length > 0) {
-            await tx.task.createMany({
-              data: tasksToCreate.map((task) => ({
-                ...task,
-                projectId: id,
-              })),
-            });
-          }
-        }
-
-        return tx.project.findUnique({
-          where: { id },
-          include: {
-            tasks: true,
-            owner: { select: { id: true, name: true } },
+        const incomingIds: number[] = tasksToUpdate.map((t) => t.id!);
+        await tx.task.deleteMany({
+          where: {
+            projectId: id,
+            id: { notIn: incomingIds },
           },
         });
-      });
 
-      await this.invalidateProjectsCache();
+        await Promise.all(
+          tasksToUpdate.map((task) =>
+            tx.task.update({
+              where: { id: task.id },
+              data: {
+                title: task.title,
+                description: task.description,
+                status: task.status,
+                dueDate: task.dueDate,
+              },
+            }),
+          ),
+        );
 
-      return mapProjectToDTO(updatedProject!);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn(`Project with ID ${id} not found for update`);
-        throw new NotFoundException('Project not found');
+        if (tasksToCreate.length > 0) {
+          await tx.task.createMany({
+            data: tasksToCreate.map((task) => ({
+              ...task,
+              projectId: id,
+            })),
+          });
+        }
       }
-      throw error;
-    }
+
+      return tx.project.findUnique({
+        where: { id },
+        include: {
+          tasks: true,
+          owner: { select: { id: true, name: true } },
+        },
+      });
+    });
+
+    await this.invalidateProjectsCache();
+
+    return mapProjectToDTO(updatedProject!);
   }
 
-  async deleteProject(id: number): Promise<void> {
-    try {
-      await this.prisma.project.delete({
-        where: { id },
-      });
-      this.logger.log(`Deleted project with ID ${id}`);
-      await this.invalidateProjectsCache();
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn(`Project with ID ${id} not found for deletion`);
-        throw new NotFoundException('Project not found');
-      }
-      throw error;
+  async deleteProject(id: number, userId: number): Promise<void> {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${id} not found`);
     }
+
+    if (project.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this project',
+      );
+    }
+
+    await this.prisma.project.delete({
+      where: { id },
+    });
+    this.logger.log(`Deleted project with ID ${id}`);
+    await this.invalidateProjectsCache();
   }
 }

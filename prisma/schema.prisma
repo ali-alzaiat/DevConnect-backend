@@ -33,6 +33,18 @@ model User {
   articlePermissions  ArticlePermission[]
   projectPermissions  ProjectPermission[]
   snippetPermissions  SnippetPermission[]
+
+  // Preferences
+  preferences         UserPreference?
+}
+
+model UserPreference {
+  id        Int      @id @default(autoincrement())
+  theme     String   @default("light")
+  language  String   @default("en")
+  
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Article {

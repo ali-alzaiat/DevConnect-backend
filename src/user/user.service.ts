@@ -11,6 +11,7 @@ import { PrismaService } from 'src/common/prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class UserService {
@@ -20,33 +21,34 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    try {
-      const user = await this.prisma.user.create({
-        data: {
-          email: createUserDto.email,
-          password: hashedPassword, // Save the HASH
-          name: createUserDto.name,
+    const user = await this.prisma.user.create({
+      data: {
+        email: createUserDto.email,
+        password: hashedPassword, // Save the HASH
+        name: createUserDto.name,
+        preferences: {
+          create: {
+            theme: 'light',
+            language: 'en',
+          },
         },
-      });
+      },
+      include: {
+        preferences: true,
+      },
+    });
 
-      // Remove password from response
-      const { password, ...result } = user;
-      return result;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Email already exists');
-      }
-      throw error;
-    }
+    // Remove password from response
+    const { password, ...result } = user;
+    return result;
   }
 
-  async findAll(page: number = 1, limit: number = 10) {
-    let users: Partial<User>[];
-    try {
-      users = await this.prisma.user.findMany({
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResponseDto<any>> {
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { name: Prisma.SortOrder.asc },
@@ -56,47 +58,49 @@ export class UserService {
           email: true,
           createdAt: true,
           role: true,
+          preferences: {
+            select: {
+              theme: true,
+              language: true,
+            },
+          },
         },
-      });
-    } catch (error) {
-      this.logger.error('Failed to get users', error.stack);
-      return new InternalServerErrorException(
-        'Failed to get users because of a database error',
-      );
-    }
+      }),
+      this.prisma.user.count(),
+    ]);
 
-    this.logger.log(`Fetched ${limit} users from page ${page}`);
+    const totalPages = Math.ceil(total / limit);
 
-    return users;
+    this.logger.log(`Fetched ${users.length} users (Total: ${total})`);
+
+    return {
+      data: users,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   async findById(id: number) {
-    let user: Partial<User> | null;
-
-    try {
-      user = await this.prisma.user.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          createdAt: true,
-          role: true,
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        role: true,
+        preferences: {
+          select: {
+            theme: true,
+            language: true,
+          },
         },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn('User not found');
-        throw new NotFoundException('User not found');
-      }
-      this.logger.error('Failed to fetch user', error.stack);
-      throw new InternalServerErrorException(
-        'Failed to fetch user because of database error',
-      );
-    }
+      },
+    });
 
     if (!user) {
       this.logger.warn('User not found');
@@ -108,32 +112,22 @@ export class UserService {
   }
 
   async findByEmail(email: string) {
-    let user: Partial<User> | null;
-
-    try {
-      user = await this.prisma.user.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          createdAt: true,
-          role: true,
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        role: true,
+        preferences: {
+          select: {
+            theme: true,
+            language: true,
+          },
         },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn('User not found');
-        throw new NotFoundException('User not found');
-      }
-      this.logger.error('Failed to fetch user', error.stack);
-      throw new InternalServerErrorException(
-        'Failed to fetch user because of database error',
-      );
-    }
+      },
+    });
 
     if (!user) {
       this.logger.warn('User not found');
@@ -144,55 +138,48 @@ export class UserService {
     return user;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
-    let user: Partial<User>;
-    try {
-      user = await this.prisma.user.update({
-        where: { id },
-        data: updateUserDto,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          createdAt: true,
-          role: true,
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn('User not found');
-        throw new NotFoundException('User not found');
-      }
-      this.logger.error('Failed to fetch user', error.stack);
-      throw new InternalServerErrorException(
-        'Failed to fetch user because of database error',
-      );
+  async findByEmailWithPassword(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      this.logger.warn('User not found');
+      throw new NotFoundException('User not found');
     }
+
+    return user;
+  }
+
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: updateUserDto,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        role: true,
+        preferences: {
+          select: {
+            theme: true,
+            language: true,
+          },
+        },
+      },
+    });
     this.logger.log(`Updated user with id ${id}`);
     return user;
   }
 
   async remove(id: number) {
-    try {
-      await this.prisma.user.delete({
-        where: { id },
-      });
-      this.logger.log(`Deleted user with id ${id}`);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn('User not found');
-        throw new NotFoundException('User not found');
-      }
-      this.logger.error(`Failed to deleted user`, error.stack);
-      throw new InternalServerErrorException(
-        'Failed to deleted user because of a database error',
-      );
-    }
+    await this.prisma.user.delete({
+      where: { id },
+    });
+    this.logger.log(`Deleted user with id ${id}`);
   }
 }

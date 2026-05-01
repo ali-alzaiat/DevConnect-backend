@@ -37,6 +37,18 @@ services:
   # --- NestJS app ---
   app:
     build: .
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /usr/src/app/src
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: package.json
+          target: /usr/src/app/package.json
+        - action: rebuild
+          path: package-lock.json
     container_name: nest-app
     restart: always
     env_file:
@@ -52,13 +64,9 @@ services:
       sh -c "
         echo 'Waiting for MySQL to be fully ready...' &&
         sleep 25 &&
-        npx prisma migrate reset --force &&
+        npx prisma db push &&
         npm run start:dev
       "
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-    working_dir: /usr/src/app
 
 volumes:
   mysql_data:
