@@ -1,4 +1,4 @@
- import { 
+import {
   ForbiddenException,
   Inject,
   Injectable,
@@ -12,15 +12,9 @@ import { PrismaService } from 'src/common/prisma/prisma.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { mapProjectToDTO } from './project.utils';
-import { ProjectResponseDto } from './dto/project-response.dto';
-import { Prisma, Project, Task, User } from '@prisma/client';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
-
-type ProjectWithOwners = Project & {
-  owner: Pick<User, 'id' | 'name'> | null;
-  tasks: Task[];
-};
+import { ProjectResponseDto } from './dto/project-response.dto';
 
 @Injectable()
 export class ProjectService {
@@ -150,11 +144,7 @@ export class ProjectService {
     return mapProjectToDTO(project);
   }
 
-  async update(
-    id: number,
-    updateProjectDto: UpdateProjectDto,
-    userId: number,
-  ) {
+  async update(id: number, updateProjectDto: UpdateProjectDto, userId: number) {
     this.logger.log(`Updating project with ID: ${id}`);
 
     const existingProject = await this.prisma.project.findUnique({
@@ -227,7 +217,11 @@ export class ProjectService {
 
     await this.invalidateProjectsCache();
 
-    return mapProjectToDTO(updatedProject!);
+    if (!updatedProject) {
+      throw new NotFoundException(`Project with ID ${id} not found`);
+    }
+
+    return mapProjectToDTO(updatedProject);
   }
 
   async deleteProject(id: number, userId: number): Promise<void> {

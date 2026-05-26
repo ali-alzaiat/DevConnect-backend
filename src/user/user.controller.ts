@@ -14,7 +14,13 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';

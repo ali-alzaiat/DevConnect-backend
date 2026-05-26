@@ -1,34 +1,40 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Tag } from "@prisma/client";
-import { IsArray, IsDate, IsNumber, IsOptional, IsString } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { Tag } from '@prisma/client';
+import {
+  IsArray,
+  IsDate,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export default class SnippetResponseDTO {
-    @IsNumber()
-    @ApiProperty()
-    id: number;
+  @IsNumber()
+  @ApiProperty()
+  id: number;
 
-    @IsString()
-    @ApiProperty()
-    name: string;
+  @IsString()
+  @ApiProperty()
+  name: string;
 
-    @IsArray()
-    @ApiProperty()
-    tags: Tag[];
+  @IsArray()
+  @ApiProperty()
+  tags: Tag[];
 
-    @IsString()
-    @ApiProperty()
-    code: string;
+  @IsString()
+  @ApiProperty()
+  code: string;
 
-    @IsString()
-    @ApiProperty()
-    @IsOptional()
-    description?: string | null;
+  @IsString()
+  @ApiProperty()
+  @IsOptional()
+  description?: string | null;
 
-    @IsDate()
-    @ApiProperty()
-    createdAt: Date;
+  @IsDate()
+  @ApiProperty()
+  createdAt: Date;
 
-    @IsDate()
-    @ApiProperty()
-    updatedAt: Date;
+  @IsDate()
+  @ApiProperty()
+  updatedAt: Date;
 }

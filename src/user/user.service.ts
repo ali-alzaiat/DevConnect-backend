@@ -1,14 +1,12 @@
 import {
-  ConflictException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   LoggerService,
   NotFoundException,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/common/prisma/prisma.service';
-import { Prisma, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
@@ -39,7 +37,8 @@ export class UserService {
     });
 
     // Remove password from response
-    const { password, ...result } = user;
+    const result = { ...user };
+    delete (result as { password?: string }).password;
     return result;
   }
 

@@ -19,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any): Promise<UserEntity> {
+  validate(payload: { sub: number; email: string }): UserEntity {
     // The 'payload' is the JSON data that was inside the token.
     // We return a simple object that will be available as 'req.user' in controllers.
     return { userId: payload.sub, email: payload.email };

@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Tag } from '@prisma/client';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export default class CreateSnippetDTO {

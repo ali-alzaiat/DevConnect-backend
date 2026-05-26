@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNumber, IsObject, IsString } from 'class-validator';
+import { IsArray, IsDate, IsNumber, IsObject, IsString } from 'class-validator';
 import { Task } from '../entities/task.entity';
 
 export class ProjectResponseDto {
@@ -25,4 +25,12 @@ export class ProjectResponseDto {
     id: number;
     name: string;
   } | null;
+
+  @IsDate()
+  @ApiProperty()
+  createdAt: Date;
+
+  @IsDate()
+  @ApiProperty()
+  updatedAt: Date;
 }

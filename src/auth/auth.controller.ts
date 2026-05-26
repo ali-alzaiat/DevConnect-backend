@@ -12,6 +12,7 @@ import { SignupDto } from './dto/signup.dto';
 import { UserService } from 'src/user/user.service';
 import { PublicRoute } from './decorator/public-route.decorator';
 import { CurrentUser } from './decorator/current-user.decorator';
+import { UserEntity } from 'src/user/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -36,7 +37,7 @@ export class AuthController {
 
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  async checkLoginStatus(@CurrentUser() user: any) {
+  async checkLoginStatus(@CurrentUser() user: UserEntity) {
     return this.userService.findById(user.userId);
   }
 }

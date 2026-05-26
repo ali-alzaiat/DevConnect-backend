@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { PrismaService } from 'src/common/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { SignupDto } from './dto/signup.dto';
@@ -27,7 +26,7 @@ export class AuthService {
     let user: User;
     try {
       user = await this.userService.findByEmailWithPassword(dto.email);
-    } catch (error) {
+    } catch {
       this.logger.warn(`login failed because user doesn't exist`, dto.email);
       throw new UnauthorizedException('Invalid credentials');
     }

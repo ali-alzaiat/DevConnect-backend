@@ -28,7 +28,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     LoggerModule,
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: async (configService: ConfigService) => {
+      useFactory: (configService: ConfigService) => {
         return {
           stores: [
             new Keyv(),
@@ -45,7 +45,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     UserModule,
     JwtModule.registerAsync({
       global: true,
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'secretKey',
         signOptions: { expiresIn: '1h' },
       }),

@@ -9,18 +9,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import { Cache } from 'cache-manager';
-import { Prisma, Snippet, Tag, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import SnippetResponseDTO from './dto/snippet-response.dto';
 import { mapSnippetToDTO } from './snippet.util';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 import { UpdateSnippetDto } from './dto/update-snippet.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
-
-type SnippetWithCreator = Snippet & {
-  creator: Pick<User, 'id' | 'name'> | null;
-  tags: Tag[];
-};
 
 @Injectable()
 export class SnippetService {

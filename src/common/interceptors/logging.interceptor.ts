@@ -9,6 +9,8 @@ import { Observable, tap } from 'rxjs';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Inject } from '@nestjs/common';
 
+import { Request } from 'express';
+
 @Injectable()
 export class WinstonLoggingInterceptor implements NestInterceptor {
   constructor(
@@ -17,21 +19,19 @@ export class WinstonLoggingInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<Request>();
     const { method, originalUrl } = req;
     const now = Date.now();
 
     this.logger.log(`Incoming Request → ${method} ${originalUrl}`, 'HTTP');
 
-    return next
-      .handle()
-      .pipe(
-        tap(() =>
-          this.logger.log(
-            `Handled ${method} ${originalUrl} in ${Date.now() - now}ms`,
-            'HTTP',
-          ),
-        ),
-      );
+    return next.handle().pipe(
+      tap(() => {
+        this.logger.log(
+          `Handled ${method} ${originalUrl} in ${Date.now() - now}ms`,
+          'HTTP',
+        );
+      }),
+    );
   }
 }

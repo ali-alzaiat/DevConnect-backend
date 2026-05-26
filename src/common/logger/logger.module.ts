@@ -1,8 +1,7 @@
-// src/common/logger/logger.module.ts
 import { Global, Module } from '@nestjs/common';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 @Global()
 @Module({
@@ -15,13 +14,13 @@ import 'winston-daily-rotate-file';
             winston.format.timestamp(),
             winston.format.colorize(),
             winston.format.printf(({ timestamp, level, message }) => {
-              return `[${timestamp}] [${level}] ${message}`;
+              return `[${String(timestamp)}] [${String(level)}] ${String(message)}`;
             }),
           ),
         }),
 
         // log to daily rotating file
-        new (winston.transports as any).DailyRotateFile({
+        new DailyRotateFile({
           dirname: 'logs', // folder name
           filename: 'application-%DATE%.log',
           datePattern: 'YYYY-MM-DD',

@@ -4,6 +4,6 @@ import { SnippetController } from './snippet.controller';
 
 @Module({
   providers: [SnippetService],
-  controllers: [SnippetController]
+  controllers: [SnippetController],
 })
 export class SnippetModule {}
