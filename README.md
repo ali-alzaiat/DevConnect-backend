@@ -1,118 +1,182 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# DevConnect Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A modular REST API built with **NestJS 11**, **Prisma 6**, and **Redis** that powers the DevConnect developer platform. It provides authentication, article publishing, project management, task tracking, and code-snippet sharing — all behind a stateless JWT auth layer.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Tech Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Layer            | Technology                                    |
+| ---------------- | --------------------------------------------- |
+| Framework        | NestJS 11 (Express)                           |
+| Language         | TypeScript 5                                  |
+| Database         | MySQL (via Prisma ORM)                        |
+| Caching          | Redis (via `@nestjs/cache-manager` + Keyv)    |
+| Authentication   | Passport JWT + bcrypt                         |
+| Logging          | Winston + Daily Rotate File                   |
+| API Docs         | Swagger / OpenAPI (`/api`)                    |
+| Linting          | ESLint 9 + Prettier                           |
+| Git Hooks        | Husky + Commitlint (Conventional Commits)     |
 
-## Run with Docker
+---
+
+## Prerequisites
+
+- **Node.js** ≥ 22
+- **npm** ≥ 10
+- **Docker & Docker Compose** (recommended) — _or_ a local MySQL + Redis instance
+
+---
+
+## Getting Started
+
+### Option A — Docker (recommended)
+
+The easiest way to spin up the entire stack (API + MySQL + Redis):
 
 ```bash
 docker compose up
 ```
 
-## Project setup
+This builds the app container and starts all services defined in `docker-compose.yml`.
 
-```bash
-$ npm install
-```
+### Option B — Run locally
 
-## Compile and run the project
+1. **Install dependencies**
 
-```bash
-# development
-$ npm run start
+   ```bash
+   npm install
+   ```
 
-# watch mode
-$ npm run start:dev
+2. **Create a `.env` file** in the project root (see [Environment Variables](#environment-variables)).
 
-# production mode
-$ npm run start:prod
-```
+3. **Generate Prisma client & push schema**
 
-## Run tests
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
 
-```bash
-# unit tests
-$ npm run test
+4. **Seed the database** _(optional)_
 
-# e2e tests
-$ npm run test:e2e
+   ```bash
+   npx prisma db seed
+   ```
 
-# test coverage
-$ npm run test:cov
-```
+5. **Start the dev server**
 
-## Documentation
+   ```bash
+   npm run start:dev
+   ```
 
-use /api endpoint to get swagger API docs
+The API will be available at `http://localhost:3000`.
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Environment Variables
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Create a `.env` file in the project root with the following values:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Enviroment variables example
-
-```
-DATABASE_URL="mysql://root:1234@mysql:3306/devconnect"
-REDIS_URL="redis://redis:6379"
-PORT=3000
-REDIS_HOST=redis
+```env
+DATABASE_URL="mysql://root:1234@localhost:3306/devconnect"
+JWT_SECRET="yourSuperSecretKey"
+REDIS_URL="redis://localhost:6379"
+REDIS_HOST=localhost
 REDIS_PORT=6379
+PORT=3000
+FRONTEND_URL="http://localhost:5173"
 ```
 
-## Resources
+> When running via Docker Compose, the hostnames should point to the service names defined in `docker-compose.yml` (e.g. `mysql`, `redis`).
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## API Documentation
 
-## Support
+Once the server is running, open your browser to:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```
+http://localhost:3000/api
+```
 
-## Stay in touch
+This launches the interactive **Swagger UI** with all available endpoints, request/response schemas, and authentication details.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
+
+## Project Structure
+
+```
+src/
+├── main.ts                  # Bootstrap: pipes, CORS, Swagger, logging
+├── app.module.ts            # Root module (imports all feature modules)
+├── auth/                    # Login, signup, JWT strategy, guards, @CurrentUser decorator
+├── user/                    # User CRUD, profile management
+├── article/                 # Articles with cache-version pattern
+├── project/                 # Projects & Tasks (Prisma transactions)
+├── snippet/                 # Code snippets with tag relations
+└── common/
+    ├── prisma/              # PrismaService (DB connection)
+    ├── logger/              # Winston configuration
+    ├── filters/             # Global exception filters (PrismaExceptionFilter)
+    └── interceptors/        # Request logging interceptor
+```
+
+---
+
+## Available Scripts
+
+| Script               | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `npm run start`      | Start the server (single run)                   |
+| `npm run start:dev`  | Start with hot-reload (watch mode)              |
+| `npm run start:debug`| Start with debugger + watch                     |
+| `npm run start:prod` | Run the compiled production build                |
+| `npm run build`      | Compile TypeScript via `nest build`              |
+| `npm run lint`       | Lint & auto-fix with ESLint                      |
+| `npm run format`     | Format code with Prettier                        |
+| `npm test`           | Run unit tests (Jest)                            |
+| `npm run test:watch` | Run tests in watch mode                          |
+| `npm run test:cov`   | Run tests with coverage report                   |
+| `npm run test:e2e`   | Run end-to-end tests                             |
+
+---
+
+## Key Architectural Concepts
+
+### Stateless JWT Authentication
+
+1. **Signup** → `POST /v1/auth/signup` — password hashed with bcrypt (10 rounds).
+2. **Login** → `POST /v1/auth/login` — returns a signed JWT (`access_token`).
+3. **Protected routes** — attach `Authorization: Bearer <token>`. The `JwtAuthGuard` validates the token via `JwtStrategy` and populates `req.user`.
+4. **`@CurrentUser()` decorator** — type-safe extraction of the authenticated user in controllers.
+
+### Cache-Version Pattern
+
+Read-heavy endpoints (articles, projects) use a **versioned cache key** scheme:
+
+```
+article_v3_page_1_limit_10
+```
+
+On any write operation the version counter is incremented, naturally invalidating stale entries without pattern-based Redis deletes.
+
+### Prisma ORM
+
+- Schema lives in `prisma/schema.prisma`.
+- Run `npx prisma generate` after schema changes to regenerate the typed client.
+- Run `npx prisma db push` to sync the schema to MySQL (no migration history).
+- Run `npx prisma migrate dev` for migration-based workflows.
+
+---
+
+## Contributing
+
+1. This project uses **Conventional Commits** enforced by Commitlint + Husky.
+2. Run `npm run lint` and `npm run format` before committing.
+3. All PRs should pass `npm run build` and `npm test`.
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is private and unlicensed.
