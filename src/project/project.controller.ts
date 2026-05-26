@@ -8,16 +8,16 @@ import {
   HttpCode,
   Patch,
   ParseIntPipe,
-  Query,
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { ProjectListingFilter } from 'src/types/project-list-filters';
 
 @ApiTags('Projects')
 @Controller('project')
@@ -35,17 +35,15 @@ export class ProjectController {
     return this.projectService.createProject(createProjectDto, user);
   }
 
-  @Get()
+  @Post('list')
   @HttpCode(200)
   @ApiOperation({ summary: 'Get all projects with pagination' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiBody({ type: ProjectListingFilter })
   @ApiResponse({ status: 200, type: PaginatedResponseDto })
   async getAllProjects(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Body() filters: ProjectListingFilter,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
-    return await this.projectService.getAllProjects(page, limit);
+    return await this.projectService.getAllProjects(filters);
   }
 
   @Get(':id')

@@ -14,81 +14,87 @@ datasource db {
 }
 
 model User {
-  id          Int        @id @default(autoincrement())
-  email       String     @unique
-  name        String
-  password    String
-  role        String     @default("USER")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  articles    Article[]
-  projects    Project[]
-  snippets    Snippet[]
-  messages  Message[]
-  chats     Chat[]     @relation("UserChats")
+  articles Article[]
+  projects Project[]
+  snippets Snippet[]
+  messages Message[]
+  chats    Chat[]    @relation("UserChats")
 
   // Permissions
-  articlePermissions  ArticlePermission[]
-  projectPermissions  ProjectPermission[]
-  snippetPermissions  SnippetPermission[]
+  articlePermissions ArticlePermission[]
+  projectPermissions ProjectPermission[]
+  snippetPermissions SnippetPermission[]
 
   // Preferences
-  preferences         UserPreference?
+  preferences UserPreference?
+  tasks       Task[]
 }
 
 model UserPreference {
-  id        Int      @id @default(autoincrement())
-  theme     String   @default("light")
-  language  String   @default("en")
-  
-  userId    Int      @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       Int    @id @default(autoincrement())
+  theme    String @default("light")
+  language String @default("en")
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Article {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   title       String
-  description String?   @db.Text
+  description String?  @db.Text
   content     String   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relation to User
-  authorId    Int?
-  author      User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId Int?
+  author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions ArticlePermission[]
 }
 
 model Project {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   title       String
-  description String?   @db.Text
+  description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tasks       Task[]
-  
+
   // Relation to User
-  ownerId     Int?
-  owner       User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId Int?
+  owner   User? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions ProjectPermission[]
 }
 
 model Task {
-  id          Int     @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   title       String
-  description String? @db.Text
+  description String?    @db.Text
   dueDate     DateTime
-  status      TaskStatus  @default(TO_DO)
+  status      TaskStatus @default(TO_DO)
+  priority    Priority   @default(MEDIUM)
+
+  // Relation to User
+  assigneeId Int?
+  assignee   User? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   // Relation to Project
-  projectId   Int
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade) 
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 enum TaskStatus {
@@ -97,53 +103,59 @@ enum TaskStatus {
   DONE
 }
 
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model Snippet {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   description String?  @db.Text
-  code        String  @db.Text
+  code        String   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Reation to Tag
-  tags        Tag[]   @relation("SnippetTags")
+  tags Tag[] @relation("SnippetTags")
 
   // Relation to User
-  creatorId   Int?
-  creator     User?    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId Int?
+  creator   User? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
   // Permissions
   permissions SnippetPermission[]
 }
 
 model Tag {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  snippets  Snippet[] @relation("SnippetTags")
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  snippets Snippet[] @relation("SnippetTags")
 }
 
 model Chat {
-  id        Int        @id @default(autoincrement())
-  name      String?    // Optional, useful for group chats
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String? // Optional, useful for group chats
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  users     User[]     @relation("UserChats")
-  messages  Message[]
+  users    User[]    @relation("UserChats")
+  messages Message[]
 }
 
 model Message {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   content   String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
-  authorId  Int?
-  chatId    Int
+  authorId Int?
+  chatId   Int
 
-  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  chat   Chat  @relation(fields: [chatId], references: [id], onDelete: Cascade)
 }
 
 enum PermissionLevel {
@@ -153,40 +165,40 @@ enum PermissionLevel {
 }
 
 model ArticlePermission {
-  id         Int             @id @default(autoincrement())
-  level      PermissionLevel
+  id    Int             @id @default(autoincrement())
+  level PermissionLevel
 
-  userId     Int
-  articleId  Int
+  userId    Int
+  articleId Int
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article    Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, articleId])
 }
 
 model ProjectPermission {
-  id         Int             @id @default(autoincrement())
-  level      PermissionLevel
+  id    Int             @id @default(autoincrement())
+  level PermissionLevel
 
-  userId     Int
-  projectId  Int
+  userId    Int
+  projectId Int
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId])
 }
 
 model SnippetPermission {
-  id         Int             @id @default(autoincrement())
-  level      PermissionLevel
+  id    Int             @id @default(autoincrement())
+  level PermissionLevel
 
-  userId     Int
-  snippetId  Int
+  userId    Int
+  snippetId Int
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  snippet    Snippet         @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snippet Snippet @relation(fields: [snippetId], references: [id], onDelete: Cascade)
 
   @@unique([userId, snippetId])
 }

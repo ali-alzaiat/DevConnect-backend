@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
+import 'winston-daily-rotate-file';
 
 @Global()
 @Module({
@@ -20,7 +20,8 @@ import DailyRotateFile from 'winston-daily-rotate-file';
         }),
 
         // log to daily rotating file
-        new DailyRotateFile({
+        // eslint-disable-next-line
+        new (winston.transports as any).DailyRotateFile({
           dirname: 'logs', // folder name
           filename: 'application-%DATE%.log',
           datePattern: 'YYYY-MM-DD',

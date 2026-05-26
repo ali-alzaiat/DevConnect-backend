@@ -15,6 +15,7 @@ import { mapProjectToDTO } from './project.utils';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
+import { ProjectListingFilter } from 'src/types/project-list-filters';
 
 @Injectable()
 export class ProjectService {
@@ -25,9 +26,9 @@ export class ProjectService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  private async getCacheKey(page: number, limit: number): Promise<string> {
+  private async getCacheKey(filters: ProjectListingFilter): Promise<string> {
     const version = await this.getProjectCacheVersion();
-    return `projects_v${version}_page_${page}_limit_${limit}`;
+    return `projects_v${version}_${JSON.stringify(filters)}`;
   }
 
   // Helper to get the current version
@@ -82,16 +83,22 @@ export class ProjectService {
   }
 
   async getAllProjects(
-    page: number = 1,
-    limit: number = 10,
+    filters: ProjectListingFilter,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
-    const cacheKey = await this.getCacheKey(page, limit);
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'updatedAt',
+      sortOrder = 'desc',
+      searchTerm,
+    } = filters;
+    const cacheKey = await this.getCacheKey(filters);
     const cachedData: PaginatedResponseDto<ProjectResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
 
     if (cachedData) {
       this.logger.log(
-        `Returning cached projects for page ${page} with limit ${limit}`,
+        `Returning cached projects for filters ${JSON.stringify(filters)}`,
       );
       return cachedData;
     }
@@ -100,6 +107,18 @@ export class ProjectService {
       this.prisma.project.findMany({
         skip: (page - 1) * limit,
         take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        where: {
+          ...(searchTerm
+            ? {
+                OR: [
+                  { title: { contains: searchTerm } },
+                  { description: { contains: searchTerm } },
+                ],
+              }
+            : {}),
+          updatedAt: { gte: filters.updatedAtFrom, lte: filters.updatedAtTo },
+        },
         include: {
           tasks: true,
           owner: { select: { id: true, name: true } },
