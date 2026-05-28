@@ -14,10 +14,9 @@ services:
     healthcheck:
       test:
         ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p1234']
-      interval: 3s
-      timeout: 5s
+      interval: 1s
+      timeout: 2s
       retries: 30
-      start_period: 40s # Increased to allow full initialization
 
   # --- Redis cache ---
   redis:

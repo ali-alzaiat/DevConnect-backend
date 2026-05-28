@@ -29,7 +29,7 @@ async function bootstrap() {
   const frontendUrl = configService.get<string>('FRONTEND_URL');
   app.enableCors({
     origin: frontendUrl ? [frontendUrl] : false,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 
@@ -47,7 +47,6 @@ async function bootstrap() {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        in: 'header',
       },
       'JWT-auth', // The name of the scheme
     )
