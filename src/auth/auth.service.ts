@@ -5,6 +5,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserService } from 'src/user/user.service';
 import { User } from '@prisma/client';
+import { LoginResponseDto } from './dto/login-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +23,7 @@ export class AuthService {
     return user;
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto): Promise<LoginResponseDto> {
     let user: User;
     try {
       user = await this.userService.findByEmailWithPassword(dto.email);
@@ -43,7 +44,7 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email };
     this.logger.log('logged in successfully', dto.email);
     return {
-      access_token: this.jwtService.sign(payload),
+      token: this.jwtService.sign(payload),
       user: { id: user.id, email: user.email, name: user.name },
     };
   }
