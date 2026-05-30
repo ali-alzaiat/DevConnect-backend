@@ -18,6 +18,7 @@ import { updateArticleDto } from './dto/update-article.dto';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { ApiPaginatedResponse } from 'src/common/decorators/ApiPaginatedResponse';
 
 @ApiTags('Articles')
 @Controller('article')
@@ -29,7 +30,7 @@ export class ArticleController {
   @ApiOperation({ summary: 'Get all articles with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  @ApiPaginatedResponse(ArticleResponseDto)
   async getAllArticles(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,

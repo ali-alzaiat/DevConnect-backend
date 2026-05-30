@@ -18,6 +18,7 @@ import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { ProjectListingFilter } from 'src/types/project-list-filters';
+import { ApiPaginatedResponse } from 'src/common/decorators/ApiPaginatedResponse';
 
 @ApiTags('Projects')
 @Controller('project')
@@ -39,7 +40,7 @@ export class ProjectController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Get all projects with pagination' })
   @ApiBody({ type: ProjectListingFilter })
-  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  @ApiPaginatedResponse(ProjectResponseDto)
   async getAllProjects(
     @Body() filters: ProjectListingFilter,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {

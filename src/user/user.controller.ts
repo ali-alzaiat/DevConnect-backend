@@ -24,6 +24,8 @@ import {
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { ApiPaginatedResponse } from 'src/common/decorators/ApiPaginatedResponse';
+import { UserResponseDTO } from './dto/user-response.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -43,11 +45,11 @@ export class UserController {
   @ApiOperation({ summary: 'Get all users with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: 200, type: PaginatedResponseDto })
+  @ApiPaginatedResponse(PaginatedResponseDto)
   findAllUsers(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-  ): Promise<PaginatedResponseDto<any>> {
+  ): Promise<PaginatedResponseDto<UserResponseDTO>> {
     return this.userService.findAll(page, limit);
   }
 

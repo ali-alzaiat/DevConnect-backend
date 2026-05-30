@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { UserResponseDTO } from './dto/user-response.dto';
 
 @Injectable()
 export class UserService {
@@ -45,7 +46,7 @@ export class UserService {
   async findAll(
     page: number = 1,
     limit: number = 10,
-  ): Promise<PaginatedResponseDto<any>> {
+  ): Promise<PaginatedResponseDto<UserResponseDTO>> {
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         skip: (page - 1) * limit,
