@@ -9,7 +9,6 @@ describe('UserService', () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
-      count: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -27,10 +26,6 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get<UserService>(UserService);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

@@ -18,7 +18,7 @@ export class WinstonLoggingInterceptor implements NestInterceptor {
     private readonly logger: LoggerService,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept<T>(context: ExecutionContext, next: CallHandler): Observable<T> {
     const req = context.switchToHttp().getRequest<Request>();
     const { method, originalUrl } = req;
     const now = Date.now();
@@ -32,6 +32,6 @@ export class WinstonLoggingInterceptor implements NestInterceptor {
           'HTTP',
         );
       }),
-    );
+    ) as Observable<T>;
   }
 }
