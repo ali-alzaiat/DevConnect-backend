@@ -15,9 +15,7 @@ describe('SnippetController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SnippetController],
-      providers: [
-        { provide: SnippetService, useValue: mockSnippetService },
-      ],
+      providers: [{ provide: SnippetService, useValue: mockSnippetService }],
     }).compile();
 
     controller = module.get<SnippetController>(SnippetController);
