@@ -13,9 +13,10 @@ import { UserService } from 'src/user/user.service';
 import { PublicRoute } from './decorator/public-route.decorator';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LoginResponseDto } from './dto/login-response.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -26,6 +27,7 @@ export class AuthController {
   @PublicRoute()
   @Post('/login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login' })
   @ApiResponse({
     status: 200,
     type: LoginResponseDto,
@@ -38,6 +40,7 @@ export class AuthController {
   @PublicRoute()
   @Post('signup')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Signup' })
   @ApiResponse({ status: 200, description: 'Signup successful' })
   signup(@Body() signupDto: SignupDto) {
     return this.authService.signup(signupDto);
@@ -45,6 +48,7 @@ export class AuthController {
 
   @Get('me')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check login status' })
   @ApiResponse({ status: 200, description: 'User found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkLoginStatus(@CurrentUser() user: UserEntity) {

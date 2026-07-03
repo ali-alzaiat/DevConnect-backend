@@ -54,9 +54,10 @@ NestJS 11, Prisma 6 (MySQL), Redis (cache-manager + Keyv), Passport JWT, bcrypt,
 - Log request/response via the global interceptor in `common/interceptors/`.
 - Never log sensitive data (passwords, tokens, PII).
 
-### No Comments
-- Do not add comments to code. Use descriptive names and TypeScript types.
-- Exception: JSDoc on public API of shared services if the signature is non-obvious.
+### Comments
+- Prefer clean naming and strong types to make code self-documenting.
+- Use descriptive comments to explain complex logic or non-obvious architectural decisions.
+- Use JSDoc for public APIs of shared services if the signature is non-obvious.
 
 ## Folder Structure
 
