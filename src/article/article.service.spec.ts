@@ -9,7 +9,7 @@ describe('ArticleService', () => {
   let prisma: {
     article: Record<string, jest.Mock>;
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let cacheManager: Record<string, jest.Mock>;
 
   beforeEach(async () => {

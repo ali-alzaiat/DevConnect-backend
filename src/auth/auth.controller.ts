@@ -13,6 +13,7 @@ import { UserService } from 'src/user/user.service';
 import { PublicRoute } from './decorator/public-route.decorator';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { UserResponseDTO } from 'src/user/dto/user-response.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LoginResponseDto } from './dto/login-response.dto';
 
@@ -49,7 +50,11 @@ export class AuthController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check login status' })
-  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({
+    status: 200,
+    type: UserResponseDTO,
+    description: 'User found',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkLoginStatus(@CurrentUser() user: UserEntity) {
     return this.userService.findById(user.userId);
