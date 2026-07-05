@@ -26,7 +26,7 @@ export default class SnippetResponseDTO {
   code: string;
 
   @IsString()
-  @ApiProperty()
+  @ApiProperty({ type: String, required: false })
   @IsOptional()
   description?: string | null;
 

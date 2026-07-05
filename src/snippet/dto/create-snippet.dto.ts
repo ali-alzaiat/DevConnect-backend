@@ -15,7 +15,7 @@ export default class CreateSnippetDTO {
   code: string;
 
   @IsString()
-  @ApiProperty()
+  @ApiProperty({ type: String, required: false })
   @IsOptional()
   description?: string | null;
 }
