@@ -14,7 +14,7 @@ export function mapSnippetToDTO(
     name: snippet.name,
     description: snippet.description ?? undefined,
     code: snippet.code,
-    tags: snippet.tags,
+    tags: snippet.tags.map((tag) => tag.name),
     createdAt: snippet.createdAt,
     updatedAt: snippet.updatedAt,
   };
