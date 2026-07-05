@@ -8,7 +8,7 @@ export class CreateProjectDto {
   title: string;
 
   @IsString()
-  @ApiProperty({ type: [String], required: false })
+  @ApiProperty({ type: String, required: false })
   @IsOptional()
   description?: string;
 
