@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Tag } from '@prisma/client';
 import {
   IsArray,
   IsDate,
@@ -18,8 +17,8 @@ export default class SnippetResponseDTO {
   name: string;
 
   @IsArray()
-  @ApiProperty()
-  tags: Tag[];
+  @ApiProperty({ type: String, isArray: true })
+  tags: string[];
 
   @IsString()
   @ApiProperty()
