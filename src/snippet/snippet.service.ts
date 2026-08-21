@@ -9,13 +9,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/common/prisma/prisma.service';
 import { Cache } from 'cache-manager';
-import { Prisma } from '@prisma/client';
+import { PermissionLevel, Prisma } from '@prisma/client';
 import SnippetResponseDTO from './dto/snippet-response.dto';
 import { mapSnippetToDTO } from './snippet.util';
 import CreateSnippetDTO from './dto/create-snippet.dto';
 import { UpdateSnippetDto } from './dto/update-snippet.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { ItemPermission } from 'src/types/item-permission';
 
 @Injectable()
 export class SnippetService {
@@ -67,8 +68,13 @@ export class SnippetService {
     }
 
     const where: Prisma.SnippetWhereInput = {
-      // Users only see snippets they created or that are shared with them
-      OR: [{ creatorId: userId }, { permissions: { some: { userId } } }],
+      // Users only see snippets they created or that are shared with them;
+      // admins see everything
+      ...(userId && (await this.isAdmin(userId))
+        ? {}
+        : {
+            OR: [{ creatorId: userId }, { permissions: { some: { userId } } }],
+          }),
       ...(q
         ? {
             AND: [
@@ -120,21 +126,60 @@ export class SnippetService {
     return res;
   }
 
+  private async isAdmin(userId?: number): Promise<boolean> {
+    if (!userId) return false;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role === 'ADMIN';
+  }
+
+  /** Throws unless the user created the snippet, has EDIT access, or is an admin */
+  private async assertCanModify(id: number, userId: number) {
+    if (await this.isAdmin(userId)) return;
+    const snippet = await this.prisma.snippet.findFirst({
+      where: {
+        id,
+        OR: [
+          { creatorId: userId },
+          { permissions: { some: { userId, level: PermissionLevel.EDIT } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!snippet) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this snippet',
+      );
+    }
+  }
+
   async getSnippetById(
     id: number,
     userId?: number,
   ): Promise<SnippetResponseDTO> {
+    const admin = await this.isAdmin(userId);
     const snippet = await this.prisma.snippet.findFirst({
       where: {
         id,
-        // Users can only view snippets they created or that are shared with them
-        OR: [{ creatorId: userId }, { permissions: { some: { userId } } }],
+        // Users can only view snippets they created or that are shared with
+        // them; admins can view anything
+        ...(admin
+          ? {}
+          : {
+              OR: [
+                { creatorId: userId },
+                { permissions: { some: { userId } } },
+              ],
+            }),
       },
       include: {
         creator: {
           select: { id: true, name: true },
         },
         tags: true,
+        permissions: { where: { userId: userId ?? -1 } },
       },
     });
 
@@ -144,7 +189,12 @@ export class SnippetService {
     }
 
     this.logger.log(`Fetched snippet with ID ${id}`);
-    return mapSnippetToDTO(snippet);
+    const permission: ItemPermission = admin
+      ? 'ADMIN'
+      : snippet.creatorId === userId
+        ? 'OWNER'
+        : ((snippet.permissions[0]?.level as ItemPermission) ?? 'VIEW');
+    return { ...mapSnippetToDTO(snippet), permission };
   }
 
   async createSnippet(
@@ -185,11 +235,7 @@ export class SnippetService {
       throw new NotFoundException(`Snippet with ID ${id} not found`);
     }
 
-    if (snippet.creatorId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this snippet',
-      );
-    }
+    await this.assertCanModify(id, userId);
 
     await this.prisma.snippet.delete({
       where: { id },
@@ -211,11 +257,7 @@ export class SnippetService {
       throw new NotFoundException(`Snippet with ID ${id} not found`);
     }
 
-    if (existingSnippet.creatorId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to update this snippet',
-      );
-    }
+    await this.assertCanModify(id, userId);
 
     const snippet = await this.prisma.$transaction(async (tx) => {
       if (updateSnippetDto.tags) {

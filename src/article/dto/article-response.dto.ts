@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDate,
   IsNumber,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
@@ -36,4 +37,11 @@ export default class ArticleResponseDto {
   @IsDate()
   @ApiProperty()
   updatedAt: Date;
+
+  @IsIn(['ADMIN', 'OWNER', 'EDIT', 'SHARE', 'VIEW'])
+  @ApiProperty({
+    required: false,
+    enum: ['ADMIN', 'OWNER', 'EDIT', 'SHARE', 'VIEW'],
+  })
+  permission?: string;
 }

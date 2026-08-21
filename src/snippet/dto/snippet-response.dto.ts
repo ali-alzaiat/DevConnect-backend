@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
+  IsIn,
   IsDate,
   IsNumber,
   IsOptional,
@@ -36,4 +37,11 @@ export default class SnippetResponseDTO {
   @IsDate()
   @ApiProperty()
   updatedAt: Date;
+
+  @IsIn(['ADMIN', 'OWNER', 'EDIT', 'SHARE', 'VIEW'])
+  @ApiProperty({
+    required: false,
+    enum: ['ADMIN', 'OWNER', 'EDIT', 'SHARE', 'VIEW'],
+  })
+  permission?: string;
 }

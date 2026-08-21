@@ -15,6 +15,9 @@ describe('ProjectService', () => {
       count: jest.fn(),
       delete: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const mockCacheManager = {

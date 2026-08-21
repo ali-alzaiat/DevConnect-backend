@@ -10,12 +10,13 @@ import { PrismaService } from 'src/common/prisma/prisma.service';
 import ArticleResponseDto from './dto/article-response.dto';
 import { mapArticleToDTO } from './article.util';
 import { createArticleDto } from './dto/create-article.dto';
-import { Prisma } from '@prisma/client';
+import { PermissionLevel, Prisma } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { updateArticleDto } from './dto/update-article.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
+import { ItemPermission } from 'src/types/item-permission';
 
 @Injectable()
 export class ArticleService {
@@ -67,8 +68,13 @@ export class ArticleService {
     }
 
     const where: Prisma.ArticleWhereInput = {
-      // Users only see articles they wrote or that are shared with them
-      OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+      // Users only see articles they wrote or that are shared with them;
+      // admins see everything
+      ...(userId && (await this.isAdmin(userId))
+        ? {}
+        : {
+            OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+          }),
       ...(q
         ? {
             AND: [
@@ -119,20 +125,56 @@ export class ArticleService {
     return res;
   }
 
+  private async isAdmin(userId?: number): Promise<boolean> {
+    if (!userId) return false;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role === 'ADMIN';
+  }
+
+  /** Throws unless the user wrote the article, has EDIT access, or is an admin */
+  private async assertCanModify(id: number, userId: number) {
+    if (await this.isAdmin(userId)) return;
+    const article = await this.prisma.article.findFirst({
+      where: {
+        id,
+        OR: [
+          { authorId: userId },
+          { permissions: { some: { userId, level: PermissionLevel.EDIT } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!article) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this article',
+      );
+    }
+  }
+
   async getArticleById(
     id: number,
     userId?: number,
   ): Promise<ArticleResponseDto> {
+    const admin = await this.isAdmin(userId);
     const article = await this.prisma.article.findFirst({
       where: {
         id,
-        // Users can only view articles they wrote or that are shared with them
-        OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+        // Users can only view articles they wrote or that are shared with
+        // them; admins can view anything
+        ...(admin
+          ? {}
+          : {
+              OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+            }),
       },
       include: {
         author: {
           select: { id: true, name: true },
         },
+        permissions: { where: { userId: userId ?? -1 } },
       },
     });
 
@@ -143,7 +185,12 @@ export class ArticleService {
 
     this.logger.log(`Fetched article with ID ${id}`);
 
-    return mapArticleToDTO(article);
+    const permission: ItemPermission = admin
+      ? 'ADMIN'
+      : article.authorId === userId
+        ? 'OWNER'
+        : ((article.permissions[0]?.level as ItemPermission) ?? 'VIEW');
+    return { ...mapArticleToDTO(article), permission };
   }
 
   async createArticle(
@@ -188,11 +235,7 @@ export class ArticleService {
       throw new NotFoundException(`Article with ID ${articleId} not found`);
     }
 
-    if (article.authorId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to update this article',
-      );
-    }
+    await this.assertCanModify(articleId, userId);
 
     const updatedArticle = await this.prisma.article.update({
       where: { id: articleId },
@@ -213,11 +256,7 @@ export class ArticleService {
       throw new NotFoundException(`Article with ID ${id} not found`);
     }
 
-    if (article.authorId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this article',
-      );
-    }
+    await this.assertCanModify(id, userId);
 
     await this.prisma.article.delete({
       where: { id },
