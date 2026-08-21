@@ -45,7 +45,7 @@ export class UserController {
   @ApiOperation({ summary: 'Get all users with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiPaginatedResponse(PaginatedResponseDto)
+  @ApiPaginatedResponse(UserResponseDTO)
   findAllUsers(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
