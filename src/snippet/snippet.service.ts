@@ -39,16 +39,17 @@ export class SnippetService {
     await this.incrementSnippetVersion();
   }
 
-  private async getCacheKey(page: number, limit: number) {
+  private async getCacheKey(page: number, limit: number, q?: string) {
     const version = await this.getSnippetCacheVersion();
-    return `snippets_version_${version}_page_${page}_limit_${limit}`;
+    return `snippets_version_${version}_page_${page}_limit_${limit}_q_${q ?? ''}`;
   }
 
   async getAllSnippets(
     page: number = 1,
     limit: number = 10,
+    q?: string,
   ): Promise<PaginatedResponseDto<SnippetResponseDTO>> {
-    const cacheKey = await this.getCacheKey(page, limit);
+    const cacheKey = await this.getCacheKey(page, limit, q);
     const cachedData: PaginatedResponseDto<SnippetResponseDTO> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -59,11 +60,22 @@ export class SnippetService {
       return cachedData;
     }
 
+    const where: Prisma.SnippetWhereInput = q
+      ? {
+          OR: [
+            { name: { contains: q } },
+            { description: { contains: q } },
+            { tags: { some: { name: { contains: q } } } },
+          ],
+        }
+      : {};
+
     const [snippets, total] = await Promise.all([
       this.prisma.snippet.findMany({
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: Prisma.SortOrder.desc },
+        where,
         include: {
           creator: {
             select: { id: true, name: true },
@@ -71,7 +83,7 @@ export class SnippetService {
           tags: true,
         },
       }),
-      this.prisma.snippet.count(),
+      this.prisma.snippet.count({ where }),
     ]);
 
     const data = snippets.map(mapSnippetToDTO);

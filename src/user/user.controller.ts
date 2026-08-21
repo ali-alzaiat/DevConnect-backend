@@ -45,12 +45,19 @@ export class UserController {
   @ApiOperation({ summary: 'Get all users with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search users by name or email',
+  })
   @ApiPaginatedResponse(UserResponseDTO)
   findAllUsers(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('q') q?: string,
   ): Promise<PaginatedResponseDto<UserResponseDTO>> {
-    return this.userService.findAll(page, limit);
+    return this.userService.findAll(page, limit, q);
   }
 
   @Get('id/:id')

@@ -30,9 +30,9 @@ export class ArticleService {
     return (v as number) || 1;
   }
 
-  private async getCacheKey(page: number, limit: number) {
+  private async getCacheKey(page: number, limit: number, q?: string) {
     const version = await this.getArticleVersion();
-    return `articles_v_${version}_page_${page}_limit_${limit}`;
+    return `articles_v_${version}_page_${page}_limit_${limit}_q_${q ?? ''}`;
   }
 
   private async incrementArticleVersion() {
@@ -47,8 +47,9 @@ export class ArticleService {
   async getAllArticles(
     page: number = 1,
     limit: number = 10,
+    q?: string,
   ): Promise<PaginatedResponseDto<ArticleResponseDto>> {
-    const cacheKey = await this.getCacheKey(page, limit);
+    const cacheKey = await this.getCacheKey(page, limit, q);
     const cachedData: PaginatedResponseDto<ArticleResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -59,18 +60,29 @@ export class ArticleService {
       return cachedData;
     }
 
+    const where: Prisma.ArticleWhereInput = q
+      ? {
+          OR: [
+            { title: { contains: q } },
+            { description: { contains: q } },
+            { content: { contains: q } },
+          ],
+        }
+      : {};
+
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: Prisma.SortOrder.desc },
+        where,
         include: {
           author: {
             select: { id: true, name: true },
           },
         },
       }),
-      this.prisma.article.count(),
+      this.prisma.article.count({ where }),
     ]);
 
     const data = articles.map(mapArticleToDTO);

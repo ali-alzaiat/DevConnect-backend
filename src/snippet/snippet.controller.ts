@@ -30,12 +30,19 @@ export class SnippetController {
   @ApiOperation({ summary: 'Get all snippets with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search snippets by name, description, or tag',
+  })
   @ApiPaginatedResponse(SnippetResponseDTO)
   async getAllSnippets(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('q') q?: string,
   ): Promise<PaginatedResponseDto<SnippetResponseDTO>> {
-    return await this.snippetService.getAllSnippets(page, limit);
+    return await this.snippetService.getAllSnippets(page, limit, q);
   }
 
   @Get(':id')
