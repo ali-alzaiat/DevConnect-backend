@@ -43,8 +43,9 @@ export class ProjectController {
   @ApiPaginatedResponse(ProjectResponseDto)
   async getAllProjects(
     @Body() filters: ProjectListingFilter,
+    @CurrentUser() user: UserEntity,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
-    return await this.projectService.getAllProjects(filters);
+    return await this.projectService.getAllProjects(filters, user.userId);
   }
 
   @Get(':id')
@@ -54,8 +55,9 @@ export class ProjectController {
   @ApiResponse({ status: 404, description: 'Project not found' })
   getProjectById(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserEntity,
   ): Promise<ProjectResponseDto> {
-    return this.projectService.getProjectById(id);
+    return this.projectService.getProjectById(id, user.userId);
   }
 
   @Patch(':id')

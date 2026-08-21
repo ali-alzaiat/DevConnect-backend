@@ -14,6 +14,7 @@ import { ProjectModule } from './project/project.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
+import { RolesGuard } from './auth/guard/roles.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -62,6 +63,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      // Runs after JwtAuthGuard; enforces @Roles() decorators
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

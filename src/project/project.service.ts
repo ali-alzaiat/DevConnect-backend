@@ -26,9 +26,12 @@ export class ProjectService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  private async getCacheKey(filters: ProjectListingFilter): Promise<string> {
+  private async getCacheKey(
+    filters: ProjectListingFilter,
+    userId: number,
+  ): Promise<string> {
     const version = await this.getProjectCacheVersion();
-    return `projects_v${version}_${JSON.stringify(filters)}`;
+    return `projects_v${version}_u${userId}_${JSON.stringify(filters)}`;
   }
 
   // Helper to get the current version
@@ -84,6 +87,7 @@ export class ProjectService {
 
   async getAllProjects(
     filters: ProjectListingFilter,
+    userId: number,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
     const {
       page = 1,
@@ -92,7 +96,7 @@ export class ProjectService {
       sortOrder = 'desc',
       searchTerm,
     } = filters;
-    const cacheKey = await this.getCacheKey(filters);
+    const cacheKey = await this.getCacheKey(filters, userId);
     const cachedData: PaginatedResponseDto<ProjectResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -104,15 +108,20 @@ export class ProjectService {
     }
 
     const where = {
+      // Users only see projects they own or that are shared with them
+      OR: [{ ownerId: userId }, { permissions: { some: { userId } } }],
       ...(searchTerm
         ? {
-            OR: [
-              { title: { contains: searchTerm } },
-              { description: { contains: searchTerm } },
+            AND: [
+              {
+                OR: [
+                  { title: { contains: searchTerm } },
+                  { description: { contains: searchTerm } },
+                ],
+              },
             ],
           }
         : {}),
-      updatedAt: { gte: filters.updatedAtFrom, lte: filters.updatedAtTo },
     };
 
     const [projects, total] = await Promise.all([
@@ -149,16 +158,23 @@ export class ProjectService {
     return res;
   }
 
-  async getProjectById(id: number): Promise<ProjectResponseDto> {
-    const project = await this.prisma.project.findUnique({
-      where: { id },
+  async getProjectById(
+    id: number,
+    userId: number,
+  ): Promise<ProjectResponseDto> {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id,
+        // Users can only view projects they own or that are shared with them
+        OR: [{ ownerId: userId }, { permissions: { some: { userId } } }],
+      },
       include: {
         tasks: true,
         owner: { select: { id: true, name: true } },
       },
     });
     if (!project) {
-      this.logger.warn(`Project with ID ${id} not found`);
+      this.logger.warn(`Project with ID ${id} not found or not accessible`);
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
     this.logger.log(`Fetched project with ID ${id}`);

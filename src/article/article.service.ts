@@ -30,9 +30,14 @@ export class ArticleService {
     return (v as number) || 1;
   }
 
-  private async getCacheKey(page: number, limit: number, q?: string) {
+  private async getCacheKey(
+    page: number,
+    limit: number,
+    q: string | undefined,
+    userId?: number,
+  ) {
     const version = await this.getArticleVersion();
-    return `articles_v_${version}_page_${page}_limit_${limit}_q_${q ?? ''}`;
+    return `articles_v_${version}_u${userId ?? 0}_page_${page}_limit_${limit}_q_${q ?? ''}`;
   }
 
   private async incrementArticleVersion() {
@@ -48,8 +53,9 @@ export class ArticleService {
     page: number = 1,
     limit: number = 10,
     q?: string,
+    userId?: number,
   ): Promise<PaginatedResponseDto<ArticleResponseDto>> {
-    const cacheKey = await this.getCacheKey(page, limit, q);
+    const cacheKey = await this.getCacheKey(page, limit, q, userId);
     const cachedData: PaginatedResponseDto<ArticleResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -60,15 +66,23 @@ export class ArticleService {
       return cachedData;
     }
 
-    const where: Prisma.ArticleWhereInput = q
-      ? {
-          OR: [
-            { title: { contains: q } },
-            { description: { contains: q } },
-            { content: { contains: q } },
-          ],
-        }
-      : {};
+    const where: Prisma.ArticleWhereInput = {
+      // Users only see articles they wrote or that are shared with them
+      OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+      ...(q
+        ? {
+            AND: [
+              {
+                OR: [
+                  { title: { contains: q } },
+                  { description: { contains: q } },
+                  { content: { contains: q } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    };
 
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
@@ -105,9 +119,16 @@ export class ArticleService {
     return res;
   }
 
-  async getArticleById(id: number): Promise<ArticleResponseDto> {
-    const article = await this.prisma.article.findUnique({
-      where: { id },
+  async getArticleById(
+    id: number,
+    userId?: number,
+  ): Promise<ArticleResponseDto> {
+    const article = await this.prisma.article.findFirst({
+      where: {
+        id,
+        // Users can only view articles they wrote or that are shared with them
+        OR: [{ authorId: userId }, { permissions: { some: { userId } } }],
+      },
       include: {
         author: {
           select: { id: true, name: true },

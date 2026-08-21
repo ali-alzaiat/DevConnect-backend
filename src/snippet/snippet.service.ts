@@ -39,17 +39,23 @@ export class SnippetService {
     await this.incrementSnippetVersion();
   }
 
-  private async getCacheKey(page: number, limit: number, q?: string) {
+  private async getCacheKey(
+    page: number,
+    limit: number,
+    q: string | undefined,
+    userId: number,
+  ) {
     const version = await this.getSnippetCacheVersion();
-    return `snippets_version_${version}_page_${page}_limit_${limit}_q_${q ?? ''}`;
+    return `snippets_version_${version}_u${userId}_page_${page}_limit_${limit}_q_${q ?? ''}`;
   }
 
   async getAllSnippets(
     page: number = 1,
     limit: number = 10,
     q?: string,
+    userId?: number,
   ): Promise<PaginatedResponseDto<SnippetResponseDTO>> {
-    const cacheKey = await this.getCacheKey(page, limit, q);
+    const cacheKey = await this.getCacheKey(page, limit, q, userId ?? 0);
     const cachedData: PaginatedResponseDto<SnippetResponseDTO> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -60,15 +66,23 @@ export class SnippetService {
       return cachedData;
     }
 
-    const where: Prisma.SnippetWhereInput = q
-      ? {
-          OR: [
-            { name: { contains: q } },
-            { description: { contains: q } },
-            { tags: { some: { name: { contains: q } } } },
-          ],
-        }
-      : {};
+    const where: Prisma.SnippetWhereInput = {
+      // Users only see snippets they created or that are shared with them
+      OR: [{ creatorId: userId }, { permissions: { some: { userId } } }],
+      ...(q
+        ? {
+            AND: [
+              {
+                OR: [
+                  { name: { contains: q } },
+                  { description: { contains: q } },
+                  { tags: { some: { name: { contains: q } } } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    };
 
     const [snippets, total] = await Promise.all([
       this.prisma.snippet.findMany({
@@ -106,9 +120,16 @@ export class SnippetService {
     return res;
   }
 
-  async getSnippetById(id: number): Promise<SnippetResponseDTO> {
-    const snippet = await this.prisma.snippet.findUnique({
-      where: { id },
+  async getSnippetById(
+    id: number,
+    userId?: number,
+  ): Promise<SnippetResponseDTO> {
+    const snippet = await this.prisma.snippet.findFirst({
+      where: {
+        id,
+        // Users can only view snippets they created or that are shared with them
+        OR: [{ creatorId: userId }, { permissions: { some: { userId } } }],
+      },
       include: {
         creator: {
           select: { id: true, name: true },

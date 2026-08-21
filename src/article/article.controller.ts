@@ -40,9 +40,15 @@ export class ArticleController {
   async getAllArticles(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @CurrentUser() user: UserEntity,
     @Query('q') q?: string,
   ): Promise<PaginatedResponseDto<ArticleResponseDto>> {
-    return await this.articleService.getAllArticles(page, limit, q);
+    return await this.articleService.getAllArticles(
+      page,
+      limit,
+      q,
+      user.userId,
+    );
   }
 
   @Get(':id')
@@ -52,8 +58,9 @@ export class ArticleController {
   @ApiResponse({ status: 404, description: 'Article not found' })
   getArticleById(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserEntity,
   ): Promise<ArticleResponseDto> {
-    return this.articleService.getArticleById(id);
+    return this.articleService.getArticleById(id, user.userId);
   }
 
   @Post()
