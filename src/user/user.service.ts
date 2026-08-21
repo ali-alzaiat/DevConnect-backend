@@ -46,12 +46,20 @@ export class UserService {
   async findAll(
     page: number = 1,
     limit: number = 10,
+    q?: string,
   ): Promise<PaginatedResponseDto<UserResponseDTO>> {
+    const where: Prisma.UserWhereInput = q
+      ? {
+          OR: [{ name: { contains: q } }, { email: { contains: q } }],
+        }
+      : {};
+
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { name: Prisma.SortOrder.asc },
+        where,
         select: {
           id: true,
           name: true,
@@ -66,7 +74,7 @@ export class UserService {
           },
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     const totalPages = Math.ceil(total / limit);

@@ -103,28 +103,30 @@ export class ProjectService {
       return cachedData;
     }
 
+    const where = {
+      ...(searchTerm
+        ? {
+            OR: [
+              { title: { contains: searchTerm } },
+              { description: { contains: searchTerm } },
+            ],
+          }
+        : {}),
+      updatedAt: { gte: filters.updatedAtFrom, lte: filters.updatedAtTo },
+    };
+
     const [projects, total] = await Promise.all([
       this.prisma.project.findMany({
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
-        where: {
-          ...(searchTerm
-            ? {
-                OR: [
-                  { title: { contains: searchTerm } },
-                  { description: { contains: searchTerm } },
-                ],
-              }
-            : {}),
-          updatedAt: { gte: filters.updatedAtFrom, lte: filters.updatedAtTo },
-        },
+        where,
         include: {
           tasks: true,
           owner: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.project.count(),
+      this.prisma.project.count({ where }),
     ]);
 
     const data = projects.map(mapProjectToDTO);

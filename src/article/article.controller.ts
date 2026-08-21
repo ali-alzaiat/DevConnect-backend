@@ -30,12 +30,19 @@ export class ArticleController {
   @ApiOperation({ summary: 'Get all articles with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search articles by title or description',
+  })
   @ApiPaginatedResponse(ArticleResponseDto)
   async getAllArticles(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('q') q?: string,
   ): Promise<PaginatedResponseDto<ArticleResponseDto>> {
-    return await this.articleService.getAllArticles(page, limit);
+    return await this.articleService.getAllArticles(page, limit, q);
   }
 
   @Get(':id')
