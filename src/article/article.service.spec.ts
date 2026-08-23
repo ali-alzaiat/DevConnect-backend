@@ -8,6 +8,7 @@ describe('ArticleService', () => {
   let service: ArticleService;
   let prisma: {
     article: Record<string, jest.Mock>;
+    user: Record<string, jest.Mock>;
   };
 
   let cacheManager: Record<string, jest.Mock>;
@@ -22,10 +23,14 @@ describe('ArticleService', () => {
             article: {
               findMany: jest.fn(),
               findUnique: jest.fn(),
+              findFirst: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
               delete: jest.fn(),
               count: jest.fn(),
+            },
+            user: {
+              findUnique: jest.fn(),
             },
           },
         },
@@ -67,8 +72,9 @@ describe('ArticleService', () => {
 
   describe('getArticleById', () => {
     it('should throw NotFoundException if article not found', async () => {
-      prisma.article.findUnique.mockResolvedValue(null);
-      await expect(service.getArticleById(1)).rejects.toThrow(
+      prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
+      prisma.article.findFirst.mockResolvedValue(null);
+      await expect(service.getArticleById(1, 1)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -101,7 +107,8 @@ describe('ArticleService', () => {
   });
 
   describe('updateArticle', () => {
-    it('should throw ForbiddenException if not author', async () => {
+    it('should throw ForbiddenException if not author and no EDIT grant', async () => {
+      prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
       prisma.article.findUnique.mockResolvedValue({
         authorId: 2,
         id: 1,
@@ -111,6 +118,7 @@ describe('ArticleService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      prisma.article.findFirst.mockResolvedValue(null);
       await expect(service.updateArticle(1, {}, 1)).rejects.toThrow(
         ForbiddenException,
       );
@@ -118,7 +126,8 @@ describe('ArticleService', () => {
   });
 
   describe('deleteArticle', () => {
-    it('should throw ForbiddenException if not author', async () => {
+    it('should throw ForbiddenException if not author and no EDIT grant', async () => {
+      prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
       prisma.article.findUnique.mockResolvedValue({
         authorId: 2,
         id: 1,
@@ -128,6 +137,7 @@ describe('ArticleService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      prisma.article.findFirst.mockResolvedValue(null);
       await expect(service.deleteArticle(1, 1)).rejects.toThrow(
         ForbiddenException,
       );
