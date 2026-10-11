@@ -11,8 +11,12 @@ describe('SnippetService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       count: jest.fn(),
       delete: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -43,8 +47,9 @@ describe('SnippetService', () => {
 
   describe('getSnippetById', () => {
     it('should throw NotFoundException if snippet not found', async () => {
-      mockPrisma.snippet.findUnique.mockResolvedValue(null);
-      await expect(service.getSnippetById(1)).rejects.toThrow(
+      mockPrisma.user.findUnique.mockResolvedValue({ role: 'USER' });
+      mockPrisma.snippet.findFirst.mockResolvedValue(null);
+      await expect(service.getSnippetById(1, 1)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -58,11 +63,13 @@ describe('SnippetService', () => {
       );
     });
 
-    it('should throw ForbiddenException if user is not creator', async () => {
+    it('should throw ForbiddenException if user is not creator and no EDIT grant', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ role: 'USER' });
       mockPrisma.snippet.findUnique.mockResolvedValue({
         id: 1,
         creatorId: 2,
       });
+      mockPrisma.snippet.findFirst.mockResolvedValue(null);
       await expect(service.deleteSnippet(1, 1)).rejects.toThrow(
         ForbiddenException,
       );

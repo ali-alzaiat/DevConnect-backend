@@ -26,6 +26,7 @@ import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ApiPaginatedResponse } from 'src/common/decorators/ApiPaginatedResponse';
 import { UserResponseDTO } from './dto/user-response.dto';
+import { Roles } from 'src/auth/decorator/roles.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -42,7 +43,10 @@ export class UserController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get all users with pagination' })
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Get all users with pagination (admin only)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({
@@ -62,8 +66,13 @@ export class UserController {
 
   @Get('id/:id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get a user by ID' })
-  @ApiResponse({ status: 200, description: 'User found' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Get a user by ID (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    type: UserResponseDTO,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   findUserByID(@Param('id', ParseIntPipe) id: number) {
     return this.userService.findById(id);

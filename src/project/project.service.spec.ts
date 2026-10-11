@@ -11,8 +11,12 @@ describe('ProjectService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       count: jest.fn(),
       delete: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -43,8 +47,8 @@ describe('ProjectService', () => {
 
   describe('getProjectById', () => {
     it('should throw NotFoundException if project not found', async () => {
-      mockPrisma.project.findUnique.mockResolvedValue(null);
-      await expect(service.getProjectById(1)).rejects.toThrow(
+      mockPrisma.project.findFirst.mockResolvedValue(null);
+      await expect(service.getProjectById(1, 1)).rejects.toThrow(
         NotFoundException,
       );
     });

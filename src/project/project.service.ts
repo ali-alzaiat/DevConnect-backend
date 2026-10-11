@@ -16,6 +16,8 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { PaginatedResponseDto } from 'src/common/dto/pagination.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { ProjectListingFilter } from 'src/types/project-list-filters';
+import { ItemPermission } from 'src/types/item-permission';
+import { PermissionLevel } from '@prisma/client';
 
 @Injectable()
 export class ProjectService {
@@ -26,9 +28,12 @@ export class ProjectService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  private async getCacheKey(filters: ProjectListingFilter): Promise<string> {
+  private async getCacheKey(
+    filters: ProjectListingFilter,
+    userId: number,
+  ): Promise<string> {
     const version = await this.getProjectCacheVersion();
-    return `projects_v${version}_${JSON.stringify(filters)}`;
+    return `projects_v${version}_u${userId}_${JSON.stringify(filters)}`;
   }
 
   // Helper to get the current version
@@ -84,6 +89,7 @@ export class ProjectService {
 
   async getAllProjects(
     filters: ProjectListingFilter,
+    userId: number,
   ): Promise<PaginatedResponseDto<ProjectResponseDto>> {
     const {
       page = 1,
@@ -92,7 +98,7 @@ export class ProjectService {
       sortOrder = 'desc',
       searchTerm,
     } = filters;
-    const cacheKey = await this.getCacheKey(filters);
+    const cacheKey = await this.getCacheKey(filters, userId);
     const cachedData: PaginatedResponseDto<ProjectResponseDto> | undefined =
       await this.cacheManager.get(cacheKey);
 
@@ -104,15 +110,23 @@ export class ProjectService {
     }
 
     const where = {
+      // Users only see projects they own or that are shared with them;
+      // admins see everything
+      ...((await this.isAdmin(userId))
+        ? {}
+        : { OR: [{ ownerId: userId }, { permissions: { some: { userId } } }] }),
       ...(searchTerm
         ? {
-            OR: [
-              { title: { contains: searchTerm } },
-              { description: { contains: searchTerm } },
+            AND: [
+              {
+                OR: [
+                  { title: { contains: searchTerm } },
+                  { description: { contains: searchTerm } },
+                ],
+              },
             ],
           }
         : {}),
-      updatedAt: { gte: filters.updatedAtFrom, lte: filters.updatedAtTo },
     };
 
     const [projects, total] = await Promise.all([
@@ -149,20 +163,68 @@ export class ProjectService {
     return res;
   }
 
-  async getProjectById(id: number): Promise<ProjectResponseDto> {
-    const project = await this.prisma.project.findUnique({
-      where: { id },
+  private async isAdmin(userId: number): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role === 'ADMIN';
+  }
+
+  async getProjectById(
+    id: number,
+    userId: number,
+  ): Promise<ProjectResponseDto> {
+    const admin = await this.isAdmin(userId);
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id,
+        // Users can only view projects they own or that are shared with
+        // them; admins can view anything
+        ...(admin
+          ? {}
+          : {
+              OR: [{ ownerId: userId }, { permissions: { some: { userId } } }],
+            }),
+      },
       include: {
         tasks: true,
         owner: { select: { id: true, name: true } },
+        permissions: { where: { userId } },
       },
     });
     if (!project) {
-      this.logger.warn(`Project with ID ${id} not found`);
+      this.logger.warn(`Project with ID ${id} not found or not accessible`);
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
     this.logger.log(`Fetched project with ID ${id}`);
-    return mapProjectToDTO(project);
+    const permission: ItemPermission = admin
+      ? 'ADMIN'
+      : project.ownerId === userId
+        ? 'OWNER'
+        : ((project.permissions[0]?.level as ItemPermission) ?? 'VIEW');
+    return { ...mapProjectToDTO(project), permission };
+  }
+
+  /** Throws unless the user owns the project, has EDIT access, or is an admin */
+  private async assertCanModify(id: number, userId: number) {
+    const admin = await this.isAdmin(userId);
+    if (admin) return;
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id,
+        OR: [
+          { ownerId: userId },
+          { permissions: { some: { userId, level: PermissionLevel.EDIT } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this project',
+      );
+    }
   }
 
   async update(id: number, updateProjectDto: UpdateProjectDto, userId: number) {
@@ -176,11 +238,7 @@ export class ProjectService {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
 
-    if (existingProject.ownerId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to update this project',
-      );
-    }
+    await this.assertCanModify(id, userId);
 
     const { tasks, ...projectData } = updateProjectDto;
 
@@ -254,11 +312,7 @@ export class ProjectService {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
 
-    if (project.ownerId !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this project',
-      );
-    }
+    await this.assertCanModify(id, userId);
 
     await this.prisma.project.delete({
       where: { id },

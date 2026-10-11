@@ -40,9 +40,15 @@ export class SnippetController {
   async getAllSnippets(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @CurrentUser() user: UserEntity,
     @Query('q') q?: string,
   ): Promise<PaginatedResponseDto<SnippetResponseDTO>> {
-    return await this.snippetService.getAllSnippets(page, limit, q);
+    return await this.snippetService.getAllSnippets(
+      page,
+      limit,
+      q,
+      user.userId,
+    );
   }
 
   @Get(':id')
@@ -52,8 +58,9 @@ export class SnippetController {
   @ApiResponse({ status: 404, description: 'Snippet not found' })
   getSnippetById(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserEntity,
   ): Promise<SnippetResponseDTO> {
-    return this.snippetService.getSnippetById(id);
+    return this.snippetService.getSnippetById(id, user.userId);
   }
 
   @Post()
